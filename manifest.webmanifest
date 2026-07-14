@@ -1,0 +1,19 @@
+{
+  "name": "实验台 · 实验室记录与试剂管理",
+  "short_name": "实验台",
+  "description": "语音记录实验、管理试剂库存，面向生物医药实验与质量人员",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f5f7",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

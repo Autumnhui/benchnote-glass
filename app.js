@@ -51,7 +51,7 @@ function getQuickTools() {
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 // Cloudflare Worker 代理地址：默认 Key 只存在于 Worker 密钥里，前端不发 Key。
 // 部署 Worker 后把你的 *.workers.dev 地址填到这里（详见 benchnote-worker/）。
-const AGNES_PROXY = '';
+const AGNES_PROXY = 'https://benchnote-agnes-proxy.m4dwzbrfcj.workers.dev';
 function proxyWsUrl() { return 'wss://' + AGNES_PROXY.replace(/^https?:\/\//, ''); }
 function getSettings() { const s = Object.assign({ voiceOn: true, agnesKey: '', xfAppid: '', xfApiKey: '', xfApiSecret: '' }, load(STORE.settings, {})); return s; }
 function setSettings(s) { save(STORE.settings, s); }

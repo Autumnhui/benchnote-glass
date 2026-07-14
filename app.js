@@ -49,7 +49,10 @@ function getQuickTools() {
 }
 
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-const AGNES_DEFAULT = 'sk-wJ6SRO78ot52Wc3t9wkmMW4BkrNQlDYLDt7MsXM1s91ChjgO';
+// Cloudflare Worker 代理地址：默认 Key 只存在于 Worker 密钥里，前端不发 Key。
+// 部署 Worker 后把你的 *.workers.dev 地址填到这里（详见 benchnote-worker/）。
+const AGNES_PROXY = '';
+function proxyWsUrl() { return 'wss://' + AGNES_PROXY.replace(/^https?:\/\//, ''); }
 function getSettings() { const s = Object.assign({ voiceOn: true, agnesKey: '', xfAppid: '', xfApiKey: '', xfApiSecret: '' }, load(STORE.settings, {})); return s; }
 function setSettings(s) { save(STORE.settings, s); }
 function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
@@ -426,19 +429,19 @@ function renderMore() {
       <div class="kg-t">获取讯飞凭证</div>
       <div class="kg-d">① 打开 <a href="https://www.xfyun.cn/" target="_blank" rel="noopener">xfyun.cn</a> 注册并登录；② 控制台 → 创建应用，服务勾选「语音听写 iat」；③ 在应用详情复制下方三项并粘贴保存。</div>
     </div></div>
-    <div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="${st.xfAppid ? '如 d22da095' : '留空=使用内置默认凭证'}"></div>
-    <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置默认凭证'}"></div>
-    <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置默认凭证'}"></div>
+    <div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="${st.xfAppid ? '如 d22da095' : '留空=使用内置代理（推荐）'}"></div>
+    <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置代理（推荐）'}"></div>
+    <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置代理（推荐）'}"></div>
     <button class="btn secondary" onclick="saveXfKey()">保存讯飞配置</button>
-    <div class="help">未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方三项再保存。</div>
+    <div class="help">留空即使用内置代理（由 Cloudflare Worker 转发签名，密钥不暴露在前端）；想用自己的账号请粘贴上方三项再保存。</div>
   </div>`;
   html += `<div class="card" style="margin-top:12px">
     <div class="row1"><h3>AI 智能整理</h3><span class="tag ${agnesOk ? 'ok' : 'bad'}">${agnesOk ? '已配置' : '未配置'}</span></div>
     <div class="kg-step"><span class="kg-num">2</span><div>
       <div class="kg-t">获取 Agnes Key</div>
-      <div class="kg-d">① 打开 <a href="https://agnes-ai.com/" target="_blank" rel="noopener">agnes-ai.com</a> 注册并获取 API Key；② 粘贴下方并保存，语音转写将自动结构化填入。</div>
+      <div class="kg-d">留空即可使用内置代理（由 Cloudflare Worker 转发，无需 Key，Key 不暴露在前端）；也可粘贴自己的 Agnes Key 直连 <a href="https://agnes-ai.com/" target="_blank" rel="noopener">agnes-ai.com</a>。</div>
     </div></div>
-    <div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=使用内置默认凭证'}"></div>
+    <div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=使用内置代理（推荐）'}"></div>
     <button class="btn secondary" onclick="saveAgnesKey()">保存 Agnes 配置</button>
     <div class="help">未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方 Key 再保存。</div>
   </div>`;
@@ -550,25 +553,34 @@ function bindWebSpeech(btn) {
   };
 }
 
-/* ---------------- 讯飞语音听写（纯前端 WebSocket） ---------------- */
-/* 内置一组默认凭证，便于开箱即用；用户可在「设置 → 讯飞配置」覆盖。 */
-const XF_DEFAULT = { appid: 'd22da095', apiKey: '588473a2370b372e87fb161bbe0f8d2a', apiSecret: 'ZjQyOTEzNGM1MTc5M2IxM2UzOWQzN2Nh' };
+/* ---------------- 讯飞语音听写（WebSocket，密钥经 Worker 代理） ---------------- */
 function xfCreds() {
   const st = getSettings();
-  return {
-    appid: (st.xfAppid || '').trim() || XF_DEFAULT.appid,
-    apiKey: (st.xfApiKey || '').trim() || XF_DEFAULT.apiKey,
-    apiSecret: (st.xfApiSecret || '').trim() || XF_DEFAULT.apiSecret
-  };
+  const appid = (st.xfAppid || '').trim();
+  const apiKey = (st.xfApiKey || '').trim();
+  const apiSecret = (st.xfApiSecret || '').trim();
+  if (appid && apiKey && apiSecret) return { appid, apiKey, apiSecret, useProxy: false }; // 用户自己的凭证：浏览器直连签名
+  if (AGNES_PROXY) return { appid: '', apiKey: '', apiSecret: '', useProxy: true };        // 走代理，密钥在 Worker 端
+  return { appid: '', apiKey: '', apiSecret: '', useProxy: false };                        // 都没配：不可用
 }
-function iflytekReady() { const c = xfCreds(); return !!(c.appid && c.apiKey && c.apiSecret); }
+function iflytekReady() {
+  const st = getSettings();
+  const hasUser = !!(st.xfAppid && st.xfApiKey && st.xfApiSecret);
+  return hasUser || !!AGNES_PROXY;
+}
 
 /* 内置默认 Agnes Key，便于开箱即用；用户可在「设置 → AI 智能整理」覆盖。 */
 function agnesCreds() {
   const st = getSettings();
-  return { agnesKey: (st.agnesKey || '').trim() || AGNES_DEFAULT };
+  const userKey = (st.agnesKey || '').trim();
+  if (userKey) return { key: userKey, useProxy: false }; // 用户自己的 Key：直连 agnes-ai.com
+  if (AGNES_PROXY) return { key: '', useProxy: true };    // 走代理，Key 在 Worker 端
+  return { key: '', useProxy: false };                    // 都没配：不可用
 }
-function agnesReady() { return !!agnesCreds().agnesKey; }
+function agnesReady() {
+  const st = getSettings();
+  return !!(st.agnesKey && st.agnesKey.trim()) || !!AGNES_PROXY;
+}
 let voiceOn = getSettings().voiceOn;
 function speak(text) {
   if (!voiceOn || !window.speechSynthesis) return;
@@ -628,7 +640,10 @@ function bindIflytek(btn) {
     $('vlabel').textContent = '正在聆听…再次点击结束';
     speak('请开始说话');
     maxTimer = setTimeout(() => { speak('已到时长上限'); toast('已达讯飞单次上限 60 秒，已自动停止'); stop(); }, 58000);
-    try { ws = new WebSocket(await iflytekAuthUrl()); }
+    try {
+      const c = xfCreds();
+      ws = c.useProxy ? new WebSocket(proxyWsUrl()) : new WebSocket(await iflytekAuthUrl());
+    }
     catch (e) { toast('讯飞连接失败'); stop(); return; }
     ws.onopen = () => { timer = setInterval(flush, 40); };
     ws.onmessage = (ev) => {
@@ -656,7 +671,7 @@ function bindIflytek(btn) {
     const status = first ? 0 : 1; first = false;
     const b64 = base64Bytes(new Uint8Array(out.buffer));
     const frame = { data: { status, format: 'audio/L16;rate=16000', encoding: 'raw', audio: b64 } };
-    if (status === 0) { const c = xfCreds(); frame.common = { app_id: c.appid }; frame.business = { language: 'zh_cn', domain: 'iat', accent: 'mandarin', vad_eos: 2000 }; }
+    if (status === 0) { const c = xfCreds(); frame.common = c.useProxy ? {} : { app_id: c.appid }; frame.business = { language: 'zh_cn', domain: 'iat', accent: 'mandarin', vad_eos: 2000 }; }
     if (ws && ws.readyState === 1) ws.send(JSON.stringify(frame));
   }
   function stop() {
@@ -1426,16 +1441,19 @@ function revertWeekly() { weeklyText = weeklyRaw; renderWeeklyOut('原文', week
 function stripFence(s) { s = (s || '').trim(); const m = s.match(/^```(?:markdown|md|text)?\s*([\s\S]*?)\s*```$/i); return m ? m[1].trim() : s; }
 async function aiOptimizeWeekly() {
   if (!weeklyRaw) { toast('请先生成周报'); return; }
-  if (!agnesReady()) { toast('请先在「设置」填写 Agnes Key'); return; }
+  if (!agnesReady()) { toast('请先在「设置」填写 Agnes Key 或部署代理'); return; }
   const btn = $('aiOptWeekly');
   if (btn) { btn.disabled = true; btn.textContent = 'AI 优化中…'; }
   try {
-    const key = agnesCreds().agnesKey;
-    if (!key) throw new Error('no key');
+    const c = agnesCreds();
+    if (!c.key && !c.useProxy) throw new Error('no key');
+    const base = c.useProxy ? AGNES_PROXY : 'https://apihub.agnes-ai.com';
+    const headers = { 'Content-Type': 'application/json' };
+    if (!c.useProxy) headers['Authorization'] = 'Bearer ' + c.key;
     const sys = `你是资深科研工作者的周报 / 组会汇报润色助手。下面是一份由实验记录自动汇总出的周报草稿（偏流水账、条目化，可能带口语或语音转写痕迹）。请将其优化为一份可直接用于周报或组会汇报的素材，要求：\n\n1. 去除 AI 味：禁用「首先/其次/总之」「值得一提的是」「综上所述」「赋能」「抓手」「闭环」「进一步」等套话与空话；不堆砌形容词；用科研一线人员自然、克制的口吻写作。\n2. 工作详实：在草稿事实基础上合理补全技术细节与逻辑（如实验目的、关键参数、结果现象、异常及处理），但不要编造不存在的数据；保留批号、用量、条件等关键信息；按「做了什么—怎么做的—看到什么」组织。\n3. 结构化但不死板：可保留日期/项目分组；每部分用简短小标题或要点；重点工作适当展开，常规工作合并简述。\n4. 心得与收获：文末增加「本周心得 / 收获」小节，结合本周工作提炼 2–4 条真实、具体的体会（如方法改进、踩过的坑、对现象的新理解、下一步想法），避免空泛口号。\n5. 可选：基于本周进展给出 1–3 条具体、可执行的「下周计划」。\n\n重要：只输出纯文本，不要使用任何 Markdown 标记符号（不要用 # 号标题、星号加粗、减号列表、反引号 等），也不要用代码块包裹。用自然段落、空行分隔，以及 1. 2. 3. 这样的纯数字编号即可。不要解释你的修改，若草稿无可整理内容请直接说明。`;
-    const res = await fetch('https://apihub.agnes-ai.com/v1/chat/completions', {
+    const res = await fetch(base + '/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: weeklyRaw }], temperature: 0.5, max_tokens: 4000 })
     });
     if (!res.ok) throw new Error('agnes ' + res.status);
@@ -1517,8 +1535,11 @@ function saveSafety() {
    Agnes AI 智能整理（语音/文本 → 结构化字段）
    ============================================================ */
 async function callAgnesParse(raw) {
-  const key = agnesCreds().agnesKey;
-  if (!key) throw new Error('no key');
+  const c = agnesCreds();
+  if (!c.key && !c.useProxy) throw new Error('no key');
+  const base = c.useProxy ? AGNES_PROXY : 'https://apihub.agnes-ai.com';
+  const headers = { 'Content-Type': 'application/json' };
+  if (!c.useProxy) headers['Authorization'] = 'Bearer ' + c.key;
   const sys = `你是实验室电子记录本（ELN）的资深实验记录整理助手。用户会给你一段「原始实验记录」（可能口语化、零散、含语音转写误差）。请按以下要求处理：
 
 1. 先整体理解本次实验的目的与流程；
@@ -1543,9 +1564,9 @@ async function callAgnesParse(raw) {
 }
 
 注意：amount 与 unit 必须成对出现；离心力统一用 ×g、转速用 rpm、温度用 ℃、时间用 min；同一物料多次使用应分别成步；只输出 JSON。`;
-  const res = await fetch('https://apihub.agnes-ai.com/v1/chat/completions', {
+  const res = await fetch(base + '/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+    headers: headers,
     body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: raw }], temperature: 0.2, max_tokens: 2000 })
   });
   if (!res.ok) throw new Error('agnes ' + res.status);

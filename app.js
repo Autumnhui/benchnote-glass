@@ -429,7 +429,7 @@ function renderMore() {
       <div class="kg-t">获取讯飞凭证</div>
       <div class="kg-d">① 打开 <a href="https://www.xfyun.cn/" target="_blank" rel="noopener">xfyun.cn</a> 注册并登录；② 控制台 → 创建应用，服务勾选「语音听写 iat」；③ 在应用详情复制下方三项并粘贴保存。</div>
     </div></div>
-    <div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="${st.xfAppid ? '如 d22da095' : '留空=使用内置代理（推荐）'}"></div>
+    <div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="留空=使用内置代理（推荐）"></div>
     <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置代理（推荐）'}"></div>
     <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置代理（推荐）'}"></div>
     <button class="btn secondary" onclick="saveXfKey()">保存讯飞配置</button>

@@ -151,6 +151,11 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .card h3{margin:0;font-size:16px;font-weight:600}
 .card .meta{font-size:12px;color:var(--muted);margin-top:4px}
+/* 试剂卡片：询价并入 meta 行、效期另起第三行 */
+.meta-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
+.meta-row .meta{margin-top:0}
+.meta-act{flex:0 0 auto}
+.meta-expiry{margin-top:2px}
 .card .snippet{font-size:13.5px;color:#3a3a3c;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 .tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;backdrop-filter:blur(8px)}
@@ -207,6 +212,7 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .sheet.show{transform:translate(-50%,0)}
 .sheet .grabber{width:36px;height:5px;border-radius:3px;background:rgba(120,120,130,.4);margin:8px auto 12px;touch-action:none;cursor:grab}
 .sheet .grabber:active{cursor:grabbing}
+.sheet.dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 .sheet h2{margin:0 0 4px;font-size:20px;font-weight:700}
 .sheet .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
 
@@ -297,6 +303,12 @@ textarea{min-height:96px;resize:vertical}
   vertical-align:middle;color:#9a6b00;background:rgba(255,193,7,.16);border:1px solid rgba(255,193,7,.35);margin-left:6px}
 .warn-preset{font-size:12.5px;line-height:1.5;color:#9a6b00;background:rgba(255,193,7,.12);
   border:1px solid rgba(255,193,7,.3);border-radius:10px;padding:8px 10px;margin:2px 0 4px}
+/* 弹窗页头：返回上一级按钮 + 标题 */
+.sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.sheet-head h2{margin:0}
+.back-btn{background:none;border:0;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;
+  font-family:inherit;padding:5px 8px 5px 2px;border-radius:8px;white-space:nowrap;line-height:1}
+.back-btn:active{background:rgba(91,122,255,.1)}
 
 /* 分段控制 */
 .seg{display:flex;background:rgba(255,255,255,.45);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);

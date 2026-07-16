@@ -249,7 +249,7 @@ const DEFAULT_TEMPLATES = [
    改这里即可全站生效。                                            */
 const SUPPLIERS = {
   research: {
-    id: 'research', name: '广州斯达康生物科技有限公司', shortName: '斯达康',
+    id: 'research', name: '广州斯达康生物科技有限公司', shortName: '斯达康生物',
     audience: '科研用户', tagline: '科研试剂耗材 · 实验老师一站对接',
     contact: '农丽萍', phone: '18688470610', phoneTel: 'tel://18688470610',
     email: 'anissa.nong@kangtengbio.com', website: 'https://www.kangtengbio.com',
@@ -259,11 +259,11 @@ const SUPPLIERS = {
   },
   enterprise: {
     id: 'enterprise', name: '广州康腾生物科技有限公司', shortName: '康腾生物',
-    audience: '企业用户', tagline: '生物制药工艺链 · 研发到放行一站搞定',
+    audience: '企业客户', tagline: '生物制药工艺链 · 研发到放行一站搞定',
     contact: '张经理', phone: '189-2226-6118', phoneTel: 'tel://18922266118',
     email: 'zhangyongsheng@kangtengbio.com', website: 'https://www.kangtengbio.com',
     wechatQr: 'kangteng-qr.png',
-    brandText: '授权品牌：Lonza龙沙 · 迈邦 · 楚天微球 · 圣戈班 · 迈博瑞 · 贝兰伯 · BioLegend · Applikon｜优势代理：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Nest 等',
+    brandText: '授权品牌：Lonza龙沙 · 迈邦 · 楚天微球 · 圣戈班 · 迈博瑞 · 贝兰伯 · BioLegend · Applikon\n优势代理：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Nest 等',
     equipmentText: '仪器设备：中科都菱冰箱(2-8℃/-86℃) · 液氮罐 · 离心机',
     article: 'https://mp.weixin.qq.com/s/vZjuDG_NfYHbIxeirysBFA'
   }
@@ -650,11 +650,12 @@ function renderReagents() {
       const st = reagStatus(r);
       const tagCls = st.key === 'ok' ? 'ok' : st.key === 'warn' ? 'warn' : 'bad';
       const canInquire = st.text === '需补货' || st.text === '已过期' || st.text.includes('临期');
-      const inquireBtn = canInquire ? `<div style="margin-top:8px"><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button></div>` : '';
+      const inquireBtn = canInquire ? `<button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button>` : '';
       html += `<div class="card tap" onclick="openReagSheet('${r.id}')">
         <div class="row1"><h3>${esc(r.name)}</h3><span class="tag ${tagCls}">${st.text}</span></div>
-        <div class="meta">批号 ${esc(r.lot)} · 库存 ${r.qty}${r.unit} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div>
-        ${inquireBtn}</div>`;
+        <div class="meta-row"><div class="meta">批号 ${esc(r.lot)} · 库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>${inquireBtn ? `<div class="meta-act">${inquireBtn}</div>` : ''}</div>
+        <div class="meta meta-expiry">效期 ${esc(r.expiry)}</div>
+      </div>`;
     });
   }
   const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
@@ -1021,7 +1022,7 @@ function renderMore() {
   const xfOk = iflytekReady();
   const agnesOk = agnesReady();
   let html = '<div class="section-title">API 与密钥</div>';
-  html += '<p class="hint" style="margin:0 0 8px">建议自行配置；多人共用内置代理会偏慢，填入下方自有凭证即可提速。</p>';
+  html += '<p class="hint" style="margin:0 0 8px">建议自行配置；默认配置可能失效，填入下方自有凭证即可提速。</p>';
   const apiRows = [
     { id: 'xf', title: '语音听写', ok: xfOk, step: '获取讯飞凭证',
       stepD: '① 打开 xfyun.cn 注册登录；② 控制台创建应用，服务勾选「语音听写 iat」；③ 复制下方三项并粘贴保存。',
@@ -1038,7 +1039,7 @@ function renderMore() {
   ];
   apiRows.forEach((r) => {
     html += `<div class="api-row" onclick="toggleApi('${r.id}')">
-      <div class="api-row-main"><span class="api-row-title">${r.title}</span><span class="tag ${r.ok ? 'ok' : 'bad'}">${r.ok ? '已配置' : '未配置'}</span></div>
+      <div class="api-row-main"><span class="api-row-title">${r.title}</span><span class="tag ${r.ok ? 'ok' : 'bad'}">${r.ok ? '默认配置' : '未配置'}</span></div>
       <span class="api-caret" id="caret-${r.id}">⌄</span>
     </div>
     <div class="api-detail" id="api-${r.id}" style="display:none">
@@ -1061,9 +1062,10 @@ function renderMore() {
   supList.forEach((sp) => {
     const equipLine = sp.equipmentText ? `<div class="supplier-brand" style="margin-top:6px">${esc(sp.equipmentText)}</div>` : '';
     const articleBtn = sp.article ? `<a class="btn secondary" href="${sp.article}" target="_blank" rel="noopener">📖 公司介绍</a>` : '';
-    const inquireAction = sp.id === 'enterprise' ? 'contactServiceFirstInstrument()' : 'inquireExpiring()';
-    const inquireLabel = sp.id === 'enterprise' ? '📤 仪器/校准咨询' : '📤 试剂询价';
-    const audienceTag = sp.audience === '企业用户' ? 'bad' : 'ok';
+    const inquireCtx = sp.id === 'enterprise' ? 'instrument' : 'reagent';
+    const inquireLabel = '📤 试剂/耗材/仪器询价';
+    const audienceTag = sp.audience === '企业客户' ? 'bad' : 'ok';
+    const col = sp.id === 'enterprise' ? 'flex-direction:column;align-items:stretch;' : '';
     html += `<div class="card supplier-card-block" style="margin-bottom:12px">
       <div class="row1"><h3>${sp.shortName}</h3><span class="tag ${audienceTag}">${sp.audience}</span></div>
       <p class="supplier-tag" style="margin:6px 0 10px">${sp.tagline}</p>
@@ -1076,11 +1078,11 @@ function renderMore() {
           <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
         </div>
       </div>
-      <div class="supplier-brand">${esc(sp.brandText)}</div>
+      <div class="supplier-brand">${esc(sp.brandText).replace(/\n/g, '<br>')}</div>
       ${equipLine}
-      <div class="btn-row" style="margin-top:12px">
+      <div class="btn-row" style="margin-top:12px;${col}">
         ${articleBtn}
-        <button class="btn" onclick="${inquireAction}">${inquireLabel}</button>
+        <button class="btn" onclick="inquireSupplier('${inquireCtx}')">${inquireLabel}</button>
       </div>
     </div>`;
   });
@@ -1611,7 +1613,7 @@ function openInquireSheet(items, title, ctx) {
         <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
       </div>
     </div>
-    <div class="copy-box" id="inquireText">${esc(text)}</div>
+    <div class="copy-box" id="inquireText" style="margin-top:14px">${esc(text)}</div>
     <div class="btn-row" style="margin-top:12px">
       <button class="btn secondary" onclick="copyInquireText()">📋 复制询价文本</button>
       <button class="btn" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
@@ -1621,6 +1623,11 @@ function openInquireSheet(items, title, ctx) {
   openSheet(html);
 }
 function copyInquireText() { const t = $('inquireText').textContent; const who = _activeSupplier ? _activeSupplier.contact : SUPPLIER.contact; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + who), () => toast('复制失败')); }
+/* 通用询价入口（更多页供应商卡片）：按 ctx 路由到对应供应商，打开空白询价单让填写 */
+function inquireSupplier(ctx) {
+  const sp = pickSupplier(ctx || 'reagent');
+  openInquireSheet([{ name: '（请填写具体需求：试剂 / 耗材 / 仪器名称、规格、数量）', spec: '', qty: '', unit: '', reason: '' }], '询价 · ' + sp.shortName, ctx || 'reagent');
+}
 
 /* ① 单个试剂询价（来自试剂详情/列表） */
 function inquireReag(id) {
@@ -2098,8 +2105,9 @@ function deleteResult(id) {
    ============================================================ */
 function openTemplates() {
   const tpls = load(STORE.templates, []);
-  let html = `<div class="grabber"></div><h2>实验模板</h2>
-    <p class="hint">用常用 protocol 一键新建记录；也可在新建记录时点“存为模板”。<br>带 <span class="preset-tag">常规</span> 标记为平台预设模板，步骤来自公开 protocol，<b>使用前请自行核对确认</b>。</p>`;
+  let html = `<div class="grabber"></div>
+    <div class="sheet-head"><button class="back-btn" onclick="closeSheet()">← 返回</button><h2>实验模板</h2></div>
+    <p class="hint">用常用 protocol 一键新建记录；也可在新建记录时点“存为模板”。</p>`;
   if (!tpls.length) html += emptyState('还没有模板', '在新建实验记录时点“存为模板”');
   else {
     const order = ['细胞培养', '细胞功能', '细胞转染', '免疫荧光', '蛋白', '分子', 'PCR', '病理组织', '其他'];
@@ -2109,9 +2117,8 @@ function openTemplates() {
       const list = groups[type]; if (!list || !list.length) return;
       html += `<div class="tpl-group-title">${esc(type)}</div>`;
       list.forEach((t) => {
-        const badge = t.preset ? `<span class="preset-tag">常规·需确认</span>` : '';
         html += `<div class="list-row" onclick="useTemplate('${t.id}')"><div class="lr-ico">📋</div>
-          <div class="lr-main"><div class="lr-title">${esc(t.title)} ${badge}</div><div class="lr-sub">${esc(t.raw.slice(0, 26))}…</div></div><div class="lr-right">用 ›</div></div>`;
+          <div class="lr-main"><div class="lr-title">${esc(t.title)}</div><div class="lr-sub">${esc(t.raw.slice(0, 26))}…</div></div><div class="lr-right">用 ›</div></div>`;
       });
     });
   }
@@ -2145,9 +2152,10 @@ function useTemplate(id) {
   const t = load(STORE.templates, []).find((x) => x.id === id);
   if (!t) return;
   const toks = extractTokens(t.raw);
-  let html = `<div class="grabber"></div><h2>套用模板：${esc(t.title)}</h2>
-    <p class="hint">填入变量，生成带时间线的实验记录。</p>`;
-  if (t.preset) html += `<p class="warn-preset">⚠ 此为常规实验模板，步骤来源于公开 protocol，请自行确认后使用。</p>`;
+  let html = `<div class="grabber"></div>
+    <div class="sheet-head"><button class="back-btn" onclick="openTemplates()">← 返回模板</button><h2>套用模板：${esc(t.title)}</h2></div>
+    <p class="hint">填入变量，生成带时间线的实验记录。</p>
+    <p class="warn-preset">⚠ 此为常规实验模板，步骤来源于公开 protocol，请自行确认后使用。</p>`;
   toks.forEach((tk, i) => { html += `<div class="field"><label>${esc(tk)}</label><input id="tv_${i}" placeholder="填入${esc(tk)}"></div>`; });
   html += `<div class="field"><label>标题</label><input id="tfTitle" value="${esc(t.title)}"></div>`;
   html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
@@ -2192,7 +2200,8 @@ function generateFromTemplate(id) {
   toast('已生成记录，可继续编辑');
 }
 function newTemplate() {
-  let html = `<div class="grabber"></div><h2>新建模板</h2>
+  let html = `<div class="grabber"></div>
+    <div class="sheet-head"><button class="back-btn" onclick="openTemplates()">← 返回</button><h2>新建模板</h2></div>
     <div class="field"><label>模板名称</label><input id="ntTitle" placeholder="如：每周外泌体纯化"></div>
     <div class="field"><label>步骤文本</label><textarea id="ntRaw" placeholder="同实验记录写法，可多句用；分隔"></textarea></div>
     <button class="btn" onclick="saveNewTemplate()">保存模板</button>`;
@@ -2401,11 +2410,14 @@ async function aiOptimizeWeekly() {
     const headers = { 'Content-Type': 'application/json' };
     if (!c.useProxy) headers['Authorization'] = 'Bearer ' + c.key;
     const sys = `你是资深科研工作者的周报 / 组会汇报润色助手。下面是一份由实验记录自动汇总出的周报草稿（偏流水账、条目化，可能带口语或语音转写痕迹）。请将其优化为一份可直接用于周报或组会汇报的素材，要求：\n\n1. 去除 AI 味：禁用「首先/其次/总之」「值得一提的是」「综上所述」「赋能」「抓手」「闭环」「进一步」等套话与空话；不堆砌形容词；用科研一线人员自然、克制的口吻写作。\n2. 工作详实：在草稿事实基础上合理补全技术细节与逻辑（如实验目的、关键参数、结果现象、异常及处理），但不要编造不存在的数据；保留批号、用量、条件等关键信息；按「做了什么—怎么做的—看到什么」组织。\n3. 结构化但不死板：可保留日期/项目分组；每部分用简短小标题或要点；重点工作适当展开，常规工作合并简述。\n4. 心得与收获：文末增加「本周心得 / 收获」小节，结合本周工作提炼 2–4 条真实、具体的体会（如方法改进、踩过的坑、对现象的新理解、下一步想法），避免空泛口号。\n5. 可选：基于本周进展给出 1–3 条具体、可执行的「下周计划」。\n\n重要：只输出纯文本，不要使用任何 Markdown 标记符号（不要用 # 号标题、星号加粗、减号列表、反引号 等），也不要用代码块包裹。用自然段落、空行分隔，以及 1. 2. 3. 这样的纯数字编号即可。不要解释你的修改，若草稿无可整理内容请直接说明。`;
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 30000);
     const res = await fetch(base + '/v1/chat/completions', {
       method: 'POST',
       headers: headers,
+      signal: ctrl.signal,
       body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: weeklyRaw }], temperature: 0.5, max_tokens: 4000 })
     });
+    clearTimeout(to);
     if (!res.ok) throw new Error('agnes ' + res.status);
     const j = await res.json();
     let content = (j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
@@ -2415,7 +2427,9 @@ async function aiOptimizeWeekly() {
     renderWeeklyOut('AI 已优化', content, true);
     toast('AI 已优化'); if (voiceOn) speak('AI 已优化');
   } catch (e) {
-    toast('AI 优化失败：' + (e.message || e));
+    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（代理/网络超时）' : ('AI 优化失败：' + (e.message || e));
+    toast(msg + '，请检查 Agnes 代理或 Key');
+    console.warn('[Agnes] 周报优化失败：', e);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🤖 AI 优化'; }
   }
@@ -2452,7 +2466,7 @@ const SAFETY_ITEMS = [
 function openSafetyChecklist() {
   const saved = load(STORE.safety, { checks: {}, operator: '', date: '' });
   let html = `<div class="grabber"></div><h2>安全 Checklist</h2>
-    <p class="hint">危险操作前逐项确认，完成后可保存留痕。</p>
+    <p class="hint">危险操作前逐项确认，完成后「完成并保存」会记录时间并存入实验记录，便于留痕。</p>
     <div class="field"><label>操作人</label><input id="scOp" value="${esc(saved.operator || '')}" placeholder="操作人"></div>`;
   SAFETY_ITEMS.forEach((group) => {
     html += `<div class="check-cat">${esc(group.cat)}</div>`;
@@ -2477,8 +2491,22 @@ function toggleCheck(el) {
 function saveSafety() {
   const checks = {};
   document.querySelectorAll('.check-item').forEach((el) => { checks[el.getAttribute('data-id')] = el.classList.contains('on'); });
-  save(STORE.safety, { checks, operator: ($('scOp').value || '').trim(), date: nowISO() });
-  toast('已保存安全确认记录');
+  const operator = ($('scOp').value || '').trim();
+  const ts = nowISO();
+  const dt = ts.slice(0, 16).replace('T', ' ');
+  // 持久化 checklist 状态（含时间）
+  save(STORE.safety, { checks, operator, date: ts });
+  // 汇总已确认 / 未完成项
+  const done = [], undone = [];
+  SAFETY_ITEMS.forEach((g) => g.items.forEach((it) => { (checks[it.id] ? done : undone).push(it.text); }));
+  let raw = `操作人：${operator || '—'}\n时间：${dt}\n\n已确认（${done.length} 项）：\n` + (done.map((t) => '✓ ' + t).join('\n') || '（无）');
+  if (undone.length) raw += `\n\n未完成（${undone.length} 项）：\n` + undone.map((t) => '· ' + t).join('\n');
+  // 同步生成一条实验记录，便于留痕与追溯
+  const exps = load(STORE.exp, []);
+  exps.unshift({ id: uid('e'), title: '安全 Checklist 确认', raw, operator: operator || '实验员', tags: ['安全', 'Checklist'], createdAt: ts, steps: done.map((t) => '✓ ' + t) });
+  save(STORE.exp, exps);
+  closeSheet(); renderAll();
+  toast('已保存安全确认（含时间）到实验记录');
 }
 
 /* ============================================================
@@ -2514,11 +2542,14 @@ async function callAgnesParse(raw) {
 }
 
 注意：amount 与 unit 必须成对出现；离心力统一用 ×g、转速用 rpm、温度用 ℃、时间用 min；同一物料多次使用应分别成步；只输出 JSON。`;
+  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 30000);
   const res = await fetch(base + '/v1/chat/completions', {
     method: 'POST',
     headers: headers,
+    signal: ctrl.signal,
     body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: raw }], temperature: 0.2, max_tokens: 2000 })
   });
+  clearTimeout(to);
   if (!res.ok) throw new Error('agnes ' + res.status);
   const j = await res.json();
   const content = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
@@ -2559,7 +2590,9 @@ async function aiStructure() {
     }
   } catch (e) {
     currentSteps = structure(raw); renderSteps();
-    toast('AI 整理失败，已用本地整理');
+    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（代理/网络超时）' : ('AI 整理失败：' + (e.message || e));
+    toast(msg + '，已用本地整理');
+    console.warn('[Agnes] 整理失败：', e);
   } finally {
     if (aiBtn) { aiBtn.disabled = false; aiBtn.textContent = oldTxt || '🤖 AI 智能整理'; }
   }
@@ -2712,6 +2745,19 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
   let drag = null;   // {startY, startTy, lastY, lastT, vy, moved}
   let pending = null; // 按下但未确定方向的意图（用于区分滚动与下拉关闭）
   let raf = 0;
+  let bound = false;
+  function bindWindow() {
+    if (bound) return; bound = true;
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+  function unbindWindow() {
+    if (!bound) return; bound = false;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  }
 
   function rubberband(o, dim, constant) { constant = constant || 0.55; return (o * dim * constant) / (dim + constant * Math.abs(o)); }
   function curTy() {
@@ -2725,19 +2771,20 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
     // 交互控件与内部滚动区：不触发拖拽，交给原生处理
     if (t.closest('input, textarea, select, button, a, label, [contenteditable], .copy-box, .report-box, .batch-preview, .tbl, .expcal')) return;
     pending = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    bindWindow();
   }
   function onMove(e) {
-    if (drag) { applyDrag(e); return; }
+    if (drag) { e.preventDefault(); applyDrag(e); return; }
     if (!pending) return;
     const dy = e.clientY - pending.y, dx = Math.abs(e.clientX - pending.x);
     // 非向下滑动（向上/横向）→ 可能是滚动，放弃拖拽意图，交给原生
-    if (dy <= 6 || dx > Math.abs(dy)) { if (dy < -6 || dx > 6) pending = null; return; }
+    if (dy <= 6 || dx > Math.abs(dy)) { if (dy < -6 || dx > 6) { pending = null; unbindWindow(); } return; }
     // 内容已滚动则交给原生滚动，不抢手势
-    if (sheet.scrollTop > 0) { pending = null; return; }
+    if (sheet.scrollTop > 0) { pending = null; unbindWindow(); return; }
     // 确认：从顶部向下拖拽 → 启动关闭手势（抓手或空白区均可）
     cancelAnimationFrame(raf);
-    try { sheet.setPointerCapture(pending.id); } catch (_) {}
     sheet.style.transition = 'none'; bd.style.transition = 'none';
+    sheet.classList.add('dragging');
     drag = { startY: pending.y, startTy: curTy(), lastY: pending.y, lastT: performance.now(), vy: 0, moved: false };
     pending = null;
     applyDrag(e);
@@ -2754,9 +2801,10 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
     if (dt > 0) { drag.vy = (e.clientY - drag.lastY) / dt * 1000; drag.lastY = e.clientY; drag.lastT = now; }
   }
   function onUp() {
-    if (!drag) { pending = null; return; }
+    if (!drag) { pending = null; unbindWindow(); return; }
     const h = VH(), ty = curTy(), vy = drag.vy;
-    drag = null;
+    drag = null; unbindWindow();
+    sheet.classList.remove('dragging');
     const dismiss = (vy > 550 && ty > 0) || ty > h * 0.42;  // 快速下甩 或 拖过 42% → 关闭
     settle(dismiss ? h : 0, vy);
   }
@@ -2779,10 +2827,6 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
     raf = requestAnimationFrame(step);
   }
   sheet.addEventListener('pointerdown', onDown);
-  sheet.addEventListener('pointermove', onMove);
-  sheet.addEventListener('pointerup', onUp);
-  sheet.addEventListener('pointercancel', onUp);
-  sheet.addEventListener('lostpointercapture', onUp);
 })();
 
 /* ---------------- 事件绑定 ---------------- */

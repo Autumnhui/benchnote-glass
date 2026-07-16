@@ -559,9 +559,9 @@ function renderOverview() {
   const alerts = [];
   reags.forEach((r) => {
     const st = reagStatus(r);
-    if (st.key === 'bad') alerts.push({ id: r.id, color: 'var(--red)', name: r.name, desc: `批号 ${r.lot} · ${st.text}（${r.expiry}）` });
+    if (st.key === 'bad') alerts.push({ id: r.id, color: 'var(--red)', name: r.name, desc: `货号 ${r.lot} · ${st.text}（${r.expiry}）` });
     else if (st.key === 'warn' && st.text === '需补货') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `库存 ${r.qty}${r.unit} ≤ 安全库存 ${r.min}${r.unit}` });
-    else if (st.key === 'warn') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `批号 ${r.lot} · ${st.text}（${r.expiry}）` });
+    else if (st.key === 'warn') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `货号 ${r.lot} · ${st.text}（${r.expiry}）` });
   });
   if (alerts.length) {
     html += '<div class="section-title">需要关注</div>';
@@ -655,7 +655,7 @@ function renderReagents() {
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
     <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
-  html += `<input class="search" id="reagSearch" placeholder="搜索名称 / 批号 / 位置" value="${esc(reagSearch)}" oninput="onReagSearch(this.value)">`;
+  html += `<input class="search" id="reagSearch" placeholder="搜索名称 / 货号 / 位置" value="${esc(reagSearch)}" oninput="onReagSearch(this.value)">`;
   html += '<div class="chips">';
   [['all', '全部'], ['expiring', '临期'], ['expired', '过期'], ['low', '需补货']].forEach(([k, l]) => {
     html += `<div class="chip ${reagFilter === k ? 'active' : ''}" onclick="setReagFilter('${k}')">${l}</div>`;
@@ -671,8 +671,8 @@ function renderReagents() {
       const inquireBtn = canInquire ? `<button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button>` : '';
       html += `<div class="card tap" onclick="openReagSheet('${r.id}')">
         <div class="row1"><h3>${esc(r.name)}</h3><span class="tag ${tagCls}">${st.text}</span></div>
-        <div class="meta-row"><div class="meta">批号 ${esc(r.lot)} · 库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>${inquireBtn ? `<div class="meta-act">${inquireBtn}</div>` : ''}</div>
-        <div class="meta meta-expiry">效期 ${esc(r.expiry)}</div>
+        <div class="meta-row"><div class="meta">库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>${inquireBtn ? `<div class="meta-act">${inquireBtn}</div>` : ''}</div>
+        <div class="meta meta-expiry">效期 ${esc(r.expiry)} · 货号 ${esc(r.lot)}</div>
       </div>`;
     });
   }
@@ -1461,16 +1461,20 @@ function openReagSheet(id) {
   editingReagId = id || null;
   const r = id ? load(STORE.reag, []).find((x) => x.id === id) : null;
   const v = (k) => (r ? esc(r[k]) : '');
-  let html = `<div class="grabber"></div><h2>${r ? '试剂详情' : '添加试剂'}</h2>
-    <p class="hint">记录批号、效期与安全库存，系统自动提醒临期与补货。</p>
+  let html = `<div class="grabber"></div><h2>${r ? '库存详细' : '添加库存'}</h2>
+    <p class="hint">记录货号、效期与安全库存，系统自动提醒临期与补货。</p>
     <div class="field"><label>名称</label><input id="rName" value="${v('name')}" placeholder="如：PBS 缓冲液"></div>
-    <div class="field"><label>批号</label><input id="rLot" value="${v('lot')}" placeholder="如：PB2605"></div>
-    <div class="field"><label>数量 / 单位</label>
-      <div style="display:flex;gap:10px"><input id="rQty" type="number" value="${v('qty')}" placeholder="数量" style="flex:1"><input id="rUnit" value="${v('unit') || '瓶'}" placeholder="单位" style="max-width:120px"></div></div>
+    <div class="field"><label>品牌</label><input id="rSup" value="${v('supplier')}" placeholder="如：Thermo / Sigma（选填）"></div>
+    <div class="field-row">
+      <div class="field"><label>数量 / 单位</label>
+        <div style="display:flex;gap:10px"><input id="rQty" type="number" value="${v('qty')}" placeholder="数量" style="flex:1"><input id="rUnit" value="${v('unit') || '瓶'}" placeholder="单位" style="max-width:120px"></div></div>
+      <div class="field"><label>安全库存（低于即提醒补货）</label><input id="rMin" type="number" value="${v('min') || 0}" placeholder="如：1"></div>
+    </div>
     <div class="field"><label>存放位置</label><input id="rLoc" value="${v('location')}" placeholder="如：4℃柜A"></div>
-    <div class="field"><label>有效期</label><input id="rExp" type="date" value="${v('expiry')}"></div>
-    <div class="field"><label>安全库存（低于即提醒补货）</label><input id="rMin" type="number" value="${v('min') || 0}" placeholder="如：1"></div>
-    <div class="field"><label>供应商</label><input id="rSup" value="${v('supplier')}" placeholder="选填"></div>
+    <div class="field-row">
+      <div class="field"><label>有效期</label><input id="rExp" type="date" value="${v('expiry')}"></div>
+      <div class="field"><label>货号</label><input id="rLot" value="${v('lot')}" placeholder="如：PB2605"></div>
+    </div>
     <div class="field"><label>品牌偏好（询价时使用）</label><input id="rBrand" value="${v('brand')}" placeholder="如：迈博瑞 / Lonza / Solarbio（选填）"></div>
     <div class="btn-row" style="margin-top:8px">
       ${r ? '<button class="btn danger" onclick="deleteReag()">删除</button>' : ''}
@@ -1565,7 +1569,7 @@ function mapReagExcelRows(rows) {
     if (namePos >= 0) {
       hi = i;
       idx.name = namePos;
-      idx.lot = s.findIndex((c) => c.includes('批号'));
+      idx.lot = s.findIndex((c) => c.includes('批号') || c.includes('货号'));
       idx.qty = s.findIndex((c) => c.includes('数量'));
       idx.unit = s.findIndex((c) => c.includes('单位'));
       idx.location = s.findIndex((c) => c.includes('位置'));
@@ -1752,8 +1756,8 @@ function openPurchase() {
     need.forEach((r) => {
       const reason = daysUntil(r.expiry) < 0 ? '已过期' : daysUntil(r.expiry) <= 30 ? `临期(${r.expiry})` : '低于安全库存';
       const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min));
-      html += `<div class="purchase-item"><span><b>${esc(r.name)}</b> · ${esc(r.lot)}<br><span style="color:var(--muted);font-size:12px">${reason} · 供应商 ${esc(r.supplier || '—')}</span></span><span style="text-align:right">建议 ${suggest}${esc(r.unit)}</span></div>`;
-      lines += `- ${r.name} | 批号 ${r.lot} | 建议采购 ${suggest}${r.unit} | 原因：${reason} | 供应商：${r.supplier || '—'}\n`;
+      html += `<div class="purchase-item"><span><b>${esc(r.name)}</b> · 货号 ${esc(r.lot)}<br><span style="color:var(--muted);font-size:12px">${reason} · 品牌 ${esc(r.supplier || '—')}</span></span><span style="text-align:right">建议 ${suggest}${esc(r.unit)}</span></div>`;
+      lines += `- ${r.name} | 货号 ${r.lot} | 建议采购 ${suggest}${r.unit} | 原因：${reason} | 品牌：${r.supplier || '—'}\n`;
     });
     html += `<div class="copy-box" id="poText">${esc(lines)}</div>
       <div class="btn-row" style="margin-top:14px">

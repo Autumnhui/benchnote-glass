@@ -548,8 +548,9 @@ function renderExpiryCalendar() {
         const tk = reagStatus(r).key;
         const ico = { ok: 'g', warn: 'o', bad: 'r' }[tk];
         html += `<div class="list-row" onclick="openReagSheet('${r.id}')"><div class="lr-ico ${ico}">⏳</div>
-          <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">批号 ${esc(r.lot)} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div></div>
-          <div class="lr-right"><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')">询价</button><span class="tag ${tk}">${dd}</span></div></div>`;
+          <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">批号 ${esc(r.lot)} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div>
+          <span class="tag ${tk}" style="margin-top:6px;display:inline-block">${dd}</span>
+          <div style="margin-top:6px"><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button></div></div></div>`;
       });
       html += '</div>';
     }

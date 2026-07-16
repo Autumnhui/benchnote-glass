@@ -234,7 +234,7 @@ input,textarea,select{width:100%;border:1px solid rgba(255,255,255,.7);border-ra
 input:focus,textarea:focus,select:focus{border-color:var(--accent-2);box-shadow:0 0 0 3px rgba(94,87,254,.20), 0 0 0 1px rgba(52,200,255,.32), 0 1px 0 rgba(255,255,255,.6) inset}
 #expRaw.listening{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,122,255,.22);transition:box-shadow .2s}
 textarea{min-height:96px;resize:vertical}
-.btn{width:100%;border:0;border-radius:var(--radius-sm);padding:14px;font-size:16px;font-weight:600;cursor:pointer;color:#fff;
+.btn{width:100%;border:0;border-radius:var(--radius-sm);padding:14px;font-size:16px;font-weight:600;cursor:pointer;color:#fff;text-align:center;display:inline-flex;align-items:center;justify-content:center;
   background:var(--accent);
   box-shadow:0 10px 24px rgba(94,87,254,.34), 0 1px 0 rgba(255,255,255,.35) inset;position:relative}
 .btn{transition:transform .26s cubic-bezier(.32,.72,0,1)}

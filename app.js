@@ -148,6 +148,18 @@ function migrateTemplates() {
   if (!tpls.find((t) => t.id === 'tp4')) { tpls.push({ id: 'tp4', title: '蛋白纯化（AKTA）', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL' }); changed = true; }
   if (changed) save(STORE.templates, tpls);
 }
+/* 模板耗材迁移：给已有模板补上 consumables 字段（仅执行一次） */
+function migrateTemplateConsumables() {
+  if (localStorage.getItem('bench.tplConsumables')) return;
+  localStorage.setItem('bench.tplConsumables', '1');
+  const tpls = load(STORE.templates, []);
+  let changed = false;
+  tpls.forEach((t) => {
+    const def = DEFAULT_TEMPLATES.find((d) => d.id === t.id);
+    if (def && def.consumables && !t.consumables) { t.consumables = def.consumables; changed = true; }
+  });
+  if (changed) save(STORE.templates, tpls);
+}
 /* 实验记录标签迁移：给内置示例记录补上标签，便于筛选演示（仅执行一次） */
 function migrateExperiments() {
   if (localStorage.getItem('bench.expMigrated')) return;
@@ -324,7 +336,7 @@ function setFab() {
 }
 
 function emptyState(title, sub) {
-  return `<div class="empty"><svg viewBox="0 0 24 24"><path d="M6 3h12"/><path d="M7 3v6l-3 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-3-9V3"/><path d="M10 12h4"/></svg><p><b>${esc(title)}</b></p><p>${esc(sub)}</p></div>`;
+  return `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 3v18"/><path d="M11 8h5"/><path d="M11 12h5"/><path d="M11 16h3"/></svg><p><b>${esc(title)}</b></p><p>${esc(sub)}</p></div>`;
 }
 
 /* ---------------- 概览（紧凑统计条 + 快捷入口） ---------------- */
@@ -363,7 +375,7 @@ function renderOverview() {
   if (alerts.length) {
     html += '<div class="section-title">需要关注</div>';
     alerts.forEach((a) => {
-      html += `<div class="alert"><div class="dot" style="background:${a.color}"></div><div class="txt"><b>${esc(a.name)}</b><p>${esc(a.desc)}</p><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${a.id}')">询价</button></div></div>`;
+      html += `<div class="alert"><div class="dot" style="background:${a.color}"></div><div class="txt"><b>${esc(a.name)}</b><p>${esc(a.desc)}</p></div><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${a.id}')">询价</button></div>`;
     });
     html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${alerts.length}）</button>`;
   } else {
@@ -376,7 +388,7 @@ function renderOverview() {
     html += `<div class="card tap" onclick="openExpSheet('${e.id}')"><div class="row1"><h3>${esc(e.title)}</h3></div><div class="meta">${fmtDate(e.createdAt)} · ${e.steps.length} 个步骤</div><div class="snippet">${esc(e.raw)}</div></div>`;
   });
   if (!exps.length) {
-    html += `<div class="empty"><svg viewBox="0 0 24 24"><path d="M6 3h12"/><path d="M7 3v6l-3 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-3-9V3"/><path d="M10 12h4"/></svg><p><b>还没有实验记录</b></p><p>用语音或文字记录第一条</p><button class="btn" style="margin-top:14px" onclick="openExpSheet()">+ 新建实验记录</button></div>`;
+    html += `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 3v18"/><path d="M11 8h5"/><path d="M11 12h5"/><path d="M11 16h3"/></svg><p><b>还没有实验记录</b></p><p>用语音或文字记录第一条</p><button class="btn" style="margin-top:14px" onclick="openExpSheet()">+ 新建实验记录</button></div>`;
   }
 
   $('view-overview').innerHTML = html;
@@ -460,10 +472,11 @@ function renderReagents() {
       const st = reagStatus(r);
       const tagCls = st.key === 'ok' ? 'ok' : st.key === 'warn' ? 'warn' : 'bad';
       const canInquire = st.text === '需补货' || st.text === '已过期' || st.text.includes('临期');
-      const inquireBtn = canInquire ? `<button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button>` : '';
+      const inquireBtn = canInquire ? `<div style="margin-top:8px"><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button></div>` : '';
       html += `<div class="card tap" onclick="openReagSheet('${r.id}')">
-        <div class="row1"><h3>${esc(r.name)}</h3>${inquireBtn}<span class="tag ${tagCls}">${st.text}</span></div>
-        <div class="meta">批号 ${esc(r.lot)} · 库存 ${r.qty}${r.unit} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div></div>`;
+        <div class="row1"><h3>${esc(r.name)}</h3><span class="tag ${tagCls}">${st.text}</span></div>
+        <div class="meta">批号 ${esc(r.lot)} · 库存 ${r.qty}${r.unit} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div>
+        ${inquireBtn}</div>`;
     });
   }
   const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
@@ -778,9 +791,14 @@ function confirmFreezerMove() {
 
 /* ---------------- 工具箱 ---------------- */
 function renderTools() {
-  let html = '<div class="section-title">全部工具</div><div class="tool-grid">';
-  ALL_TOOLS.forEach((t) => {
-    html += `<div class="tool" onclick="${t.fn}"><div class="ti">${t.i}</div><div class="tt">${t.t}</div><div class="td">${esc(t.d)}</div></div>`;
+  const quickKeys = getQuickTools().map((t) => t.key);
+  const notInQuick = ALL_TOOLS.filter((t) => !quickKeys.includes(t.key));
+  const inQuick = ALL_TOOLS.filter((t) => quickKeys.includes(t.key));
+  const sorted = [...notInQuick, ...inQuick];
+  let html = `<div class="section-title">全部工具 <span style="font-size:11px;color:var(--muted);font-weight:400">未加入首页的排在前面</span></div><div class="tool-grid">`;
+  sorted.forEach((t) => {
+    const onHome = quickKeys.includes(t.key);
+    html += `<div class="tool${onHome ? ' tool-onhome' : ''}" onclick="${t.fn}"><div class="ti">${t.i}</div><div class="tt">${t.t}</div><div class="td">${esc(t.d)}</div>${onHome ? '<div class="tool-badge">首页</div>' : ''}</div>`;
   });
   html += '</div>';
   html += `<button class="btn secondary" style="margin-top:14px" onclick="openQuickConfig()">⚙️ 配置首页快捷工具</button>`;
@@ -2584,6 +2602,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 }
 ensureTemplateDefaults();
 migrateTemplates();
+migrateTemplateConsumables();
 migrateExperiments();
 maybeOnboard();
 renderAll();

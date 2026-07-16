@@ -1044,15 +1044,15 @@ function renderMore() {
   const apiRows = [
     { id: 'xf', title: '语音听写', ok: xfOk, step: '获取讯飞凭证',
       stepD: '① 打开 xfyun.cn 注册登录；② 控制台创建应用，服务勾选「语音听写 iat」；③ 复制下方三项并粘贴保存。',
-      fields: `<div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="留空=使用内置凭证（推荐）"></div>
-        <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置凭证（推荐）'}"></div>
-        <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置凭证（推荐）'}"></div>`,
+      fields: `<div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="留空=默认配置（不推荐）"></div>
+        <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=默认配置（不推荐）'}"></div>
+        <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=默认配置（不推荐）'}"></div>`,
       save: '<button class="btn secondary" onclick="saveXfKey()">保存讯飞配置</button>',
       help: '留空即使用内置默认凭证；想用自己的账号请粘贴上方三项再保存。',
       link: { url: 'https://console.xfyun.cn/app/myapp', label: '前往讯飞开放平台控制台' } },
     { id: 'agnes', title: 'AI 整理', ok: agnesOk, step: '获取 Agnes Key',
       stepD: '留空即使用内置默认凭证；也可粘贴自己的 Agnes Key 直连。',
-      fields: `<div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=使用内置凭证（推荐）'}"></div>`,
+      fields: `<div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=默认配置（不推荐）'}"></div>`,
       save: '<button class="btn secondary" onclick="saveAgnesKey()">保存 Agnes 配置</button>',
       help: '未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方 Key 再保存。',
       link: { url: 'https://agnes-ai.com/', label: '前往 Agnes AI 官网' } }
@@ -1133,11 +1133,11 @@ async function testApiConn(id, btn) {
       if (!c.key) { setStat('<span class="api-stat-bad">❌ 未配置凭证（无内置默认且未填写 Key）</span>'); return; }
       const base = 'https://apihub.agnes-ai.com';
       const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 15000);
-      const res = await fetch(base + '/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.key },
-        signal: ctrl.signal,
-        body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'user', content: 'ping' }], temperature: 0, max_tokens: 1 })
+      // 用 GET /v1/models 验证 Key 有效性——仅查询模型列表，不产生任何生成额度消耗
+      const res = await fetch(base + '/v1/models', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + c.key },
+        signal: ctrl.signal
       });
       clearTimeout(to);
       if (res.ok) { setStat('<span class="api-stat-ok">✅ 连通正常（Key 有效，可直接 AI 整理）</span>'); speak('连通正常'); toast('Agnes 连通正常'); }

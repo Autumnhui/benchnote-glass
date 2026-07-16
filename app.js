@@ -98,22 +98,36 @@ const DEFAULT_TEMPLATES = [
 ];
 
 /* ---------------- 供应商/合作伙伴配置（自然获客入口） ----------------
-   由康腾生物配置。所有出现「询价」「找供应商」「联系服务商」的地方都从这里读。
-   修改这里即可全站生效。                                              */
-const SUPPLIER = {
-  name: '广州康腾生物科技有限公司',
-  shortName: '康腾生物',
-  tagline: '生物制药工艺链 · 研发到放行一站搞定',
-  contact: '张经理',
-  phone: '189-2226-6118',
-  phoneTel: 'tel://18922266118',
-  email: 'zhangyongsheng@kangtengbio.com',
-  website: 'https://www.kangtengbio.com',
-  wechatQr: 'wechat-qr.png',
-  article: 'https://mp.weixin.qq.com/s/vZjuDG_NfYHbIxeirysBFA',
-  brandText: '授权品牌：Lonza龙沙 · 迈邦 · 楚天微球 · 圣戈班 · 迈博瑞 · 贝兰伯 · BioLegend · Applikon｜优势代理：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Nest 等',
-  equipmentText: '仪器设备：中科都菱冰箱(2-8℃/-86℃) · 液氮罐 · 离心机'
+   两家公司：斯达康面向科研用户，康腾面向企业用户。
+   按上下文自动路由（仪器校准→康腾，其他→斯达康）。
+   改这里即可全站生效。                                            */
+const SUPPLIERS = {
+  research: {
+    id: 'research', name: '广州斯达康生物科技有限公司', shortName: '斯达康',
+    audience: '科研用户', tagline: '科研试剂耗材 · 实验老师一站对接',
+    contact: '农丽萍', phone: '18688470610', phoneTel: 'tel://18688470610',
+    email: 'anissa.nong@kangtengbio.com', website: 'https://www.kangtengbio.com',
+    wechatQr: 'sidakang-qr.png',
+    brandText: '代理品牌：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Biosharp · Nest · Axygen · 义翘神州 · Texwipe 等',
+    equipmentText: ''
+  },
+  enterprise: {
+    id: 'enterprise', name: '广州康腾生物科技有限公司', shortName: '康腾生物',
+    audience: '企业用户', tagline: '生物制药工艺链 · 研发到放行一站搞定',
+    contact: '张经理', phone: '189-2226-6118', phoneTel: 'tel://18922266118',
+    email: 'zhangyongsheng@kangtengbio.com', website: 'https://www.kangtengbio.com',
+    wechatQr: 'wechat-qr.png',
+    brandText: '授权品牌：Lonza龙沙 · 迈邦 · 楚天微球 · 圣戈班 · 迈博瑞 · 贝兰伯 · BioLegend · Applikon｜优势代理：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Nest 等',
+    equipmentText: '仪器设备：中科都菱冰箱(2-8℃/-86℃) · 液氮罐 · 离心机',
+    article: 'https://mp.weixin.qq.com/s/vZjuDG_NfYHbIxeirysBFA'
+  }
 };
+/* 按上下文路由：仪器校准走康腾(代理中科都菱等设备)，其他场景走斯达康 */
+function pickSupplier(ctx) {
+  if (ctx === 'instrument' || ctx === 'service') return SUPPLIERS.enterprise;
+  return SUPPLIERS.research;
+}
+const SUPPLIER = SUPPLIERS.research; /* 向后兼容（默认指向斯达康） */
 function ensureTemplateDefaults() {
   const t = load(STORE.templates, null);
   if (Array.isArray(t) && t.length) return;   // 用户已有模板则不覆盖
@@ -840,29 +854,47 @@ function renderMore() {
   html += '<div class="section-title">帮助</div>';
   html += `<div class="list-row" onclick="openOnboarding()"><div class="lr-ico">👋</div><div class="lr-main"><div class="lr-title">功能引导</div><div class="lr-sub">重新查看功能介绍与密钥配置提示</div></div><div class="lr-right">›</div></div>`;
   html += '<div class="section-title">供应合作</div>';
-  html += `<div class="card supplier-card-block">
-    <div class="row1"><h3>${SUPPLIER.shortName}</h3><span class="tag ok">试剂耗材合作</span></div>
-    <p class="supplier-tag" style="margin:6px 0 10px">${SUPPLIER.tagline}</p>
-    <div class="supplier-card">
-      <img class="supplier-qr" src="${SUPPLIER.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
-      <div class="supplier-info">
-        <div class="supplier-name">${SUPPLIER.name}</div>
-        <div class="supplier-tag">${SUPPLIER.tagline}</div>
-        <div class="supplier-line">联系人：<b>${SUPPLIER.contact}</b></div>
-        <div class="supplier-line">手机：<a href="${SUPPLIER.phoneTel}">${SUPPLIER.phone}</a></div>
-        <div class="supplier-line">邮箱：${SUPPLIER.email}</div>
-        <div class="supplier-line supplier-web"><a href="${SUPPLIER.website}" target="_blank" rel="noopener">${SUPPLIER.website.replace('https://', '')}</a></div>
+  html += '<p class="hint" style="margin:0 0 10px">按需选择：试剂耗材询价联系 <b>斯达康 / 农丽萍</b>（科研线）；仪器校准/工业耗材联系 <b>康腾 / 张经理</b>（企业线）。本工具不参与任何销售，仅作为实验记录场景下的对接入口。</p>';
+  // 两家公司卡片
+  const supList = [SUPPLIERS.research, SUPPLIERS.enterprise];
+  supList.forEach((sp) => {
+    const equipLine = sp.equipmentText ? `<div class="supplier-brand" style="margin-top:6px">${esc(sp.equipmentText)}</div>` : '';
+    const articleBtn = sp.article ? `<a class="btn secondary" href="${sp.article}" target="_blank" rel="noopener">📖 公司介绍</a>` : '';
+    const inquireAction = sp.id === 'enterprise' ? 'contactServiceFirstInstrument()' : 'inquireExpiring()';
+    const inquireLabel = sp.id === 'enterprise' ? '📤 仪器/校准咨询' : '📤 试剂询价';
+    const audienceTag = sp.audience === '企业用户' ? 'bad' : 'ok';
+    html += `<div class="card supplier-card-block" style="margin-bottom:12px">
+      <div class="row1"><h3>${sp.shortName}</h3><span class="tag ${audienceTag}">${sp.audience}</span></div>
+      <p class="supplier-tag" style="margin:6px 0 10px">${sp.tagline}</p>
+      <div class="supplier-card">
+        <img class="supplier-qr" src="${sp.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
+        <div class="supplier-info">
+          <div class="supplier-name">${sp.name}</div>
+          <div class="supplier-tag">${sp.tagline}</div>
+          <div class="supplier-line">联系人：<b>${sp.contact}</b></div>
+          <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
+          <div class="supplier-line">邮箱：${sp.email}</div>
+          <div class="supplier-line supplier-web"><a href="${sp.website}" target="_blank" rel="noopener">${sp.website.replace('https://', '')}</a></div>
+        </div>
       </div>
-    </div>
-    <div class="supplier-brand">${esc(SUPPLIER.brandText)}</div>
-    <div class="supplier-brand" style="margin-top:6px">${esc(SUPPLIER.equipmentText)}</div>
-    <div class="btn-row" style="margin-top:12px">
-      <a class="btn secondary" href="${SUPPLIER.article}" target="_blank" rel="noopener">📖 公司介绍文章</a>
-      <button class="btn" onclick="inquireExpiring()">📤 一键询价</button>
-    </div>
-    <div class="supplier-hint" style="margin-top:8px">扫码加 ${SUPPLIER.contact} 微信，需要补货/校准/方案设计随时找他；本工具不参与任何销售，仅作为实验记录场景下的对接入口。</div>
-  </div>`;
+      <div class="supplier-brand">${esc(sp.brandText)}</div>
+      ${equipLine}
+      <div class="btn-row" style="margin-top:12px">
+        ${articleBtn}
+        <button class="btn" onclick="${inquireAction}">${inquireLabel}</button>
+      </div>
+    </div>`;
+  });
   $('view-more').innerHTML = html;
+}
+/* 仪器/校准快捷入口（康腾线） */
+function contactServiceFirstInstrument() {
+  const insts = load(STORE.instruments, []);
+  if (!insts.length) { toast('请先在工具箱→仪器台账添加仪器'); return; }
+  // 找最近需要校准的仪器
+  const target = insts.slice().sort((a, b) => daysUntil(a.calibration) - daysUntil(b.calibration))[0];
+  openInstruments();
+  setTimeout(() => { if (target && daysUntil(target.calibration) <= 30) contactService(target); }, 250);
 }
 function toggleVoice() {
   const st = getSettings(); st.voiceOn = !st.voiceOn; setSettings(st);
@@ -1341,7 +1373,7 @@ function openPurchase() {
         <button class="btn secondary" onclick="copyPO()">📋 复制请购单</button>
         <button class="btn" onclick="inquireExpiring()">📤 发送给供应商</button>
       </div>
-      <div class="supplier-hint">发送给供应商：自动生成含联系方式的询价单，扫码加 ${SUPPLIER.contact}（${SUPPLIER.shortName}）微信即可。</div>`;
+      <div class="supplier-hint">发送给供应商：自动生成含联系方式的询价单，扫码加 <b>${SUPPLIERS.research.contact}</b>（${SUPPLIERS.research.shortName}）微信即可。</div>`;
   }
   openModal(html);
 }
@@ -1353,33 +1385,37 @@ function copyPO() { const t = $('poText').textContent; navigator.clipboard?.writ
    ============================================================ */
 
 /* 询价单 sheet（含微信二维码 + 一键复制） */
-function openInquireSheet(items, title) {
+let _activeSupplier = null; // 当前 sheet 展示的供应商
+function openInquireSheet(items, title, ctx) {
+  const sp = pickSupplier(ctx || 'reagent'); _activeSupplier = sp;
   // items: [{ name, spec, qty, unit, lot, reason, brandHint }]
   const lines = items.map((it) => `  · ${it.name}${it.spec ? '（' + it.spec + '）' : ''} × ${it.qty}${it.unit || ''}${it.lot ? ' 批号 ' + it.lot : ''}${it.reason ? '  · ' + it.reason : ''}`).join('\n');
-  const text = `【实验台 · 询价单】\n联系人：${SUPPLIER.contact}\n手机：${SUPPLIER.phone}\n邮箱：${SUPPLIER.email}\n公司：${SUPPLIER.name}\n\n以下试剂/耗材需要询价：\n${lines}\n\n---\n品牌偏好（如有）：${items[0] && items[0].brandHint || '请推荐'}\n\n如方便请直接报单价/货期，谢谢！`;
+  const text = `【实验台 · 询价单】\n联系人：${sp.contact}\n手机：${sp.phone}\n邮箱：${sp.email}\n公司：${sp.name}\n\n以下试剂/耗材需要询价：\n${lines}\n\n---\n品牌偏好（如有）：${items[0] && items[0].brandHint || '请推荐'}\n\n如方便请直接报单价/货期，谢谢！`;
+  const equipLine = sp.equipmentText ? `<div class="supplier-brand" style="margin-top:6px">${esc(sp.equipmentText)}</div>` : '';
   const html = `<div class="grabber"></div><h2>${title || '询价单'}</h2>
-    <p class="hint">系统已按本次需求生成询价文本。扫码添加 ${SUPPLIER.contact}（${SUPPLIER.shortName}）微信，把询价文本粘过去即可；也可直接拨打电话。</p>
+    <p class="hint">系统已按本次需求生成询价文本。扫码添加 <b>${sp.contact}</b>（${sp.shortName}）微信，把询价文本粘过去即可；也可直接拨打电话。</p>
     <div class="supplier-card">
-      <img class="supplier-qr" src="${SUPPLIER.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
+      <img class="supplier-qr" src="${sp.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
       <div class="supplier-info">
-        <div class="supplier-name">${SUPPLIER.name}</div>
-        <div class="supplier-tag">${SUPPLIER.tagline}</div>
-        <div class="supplier-line">联系人：<b>${SUPPLIER.contact}</b></div>
-        <div class="supplier-line">手机：<a href="${SUPPLIER.phoneTel}">${SUPPLIER.phone}</a></div>
-        <div class="supplier-line">邮箱：${SUPPLIER.email}</div>
-        <div class="supplier-line supplier-web"><a href="${SUPPLIER.website}" target="_blank" rel="noopener">${SUPPLIER.website.replace('https://', '')}</a></div>
+        <div class="supplier-name">${sp.name}</div>
+        <div class="supplier-tag">${sp.tagline}</div>
+        <div class="supplier-line">服务对象：<b>${sp.audience}</b></div>
+        <div class="supplier-line">联系人：<b>${sp.contact}</b></div>
+        <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
+        <div class="supplier-line">邮箱：${sp.email}</div>
+        <div class="supplier-line supplier-web"><a href="${sp.website}" target="_blank" rel="noopener">${sp.website.replace('https://', '')}</a></div>
       </div>
     </div>
     <div class="copy-box" id="inquireText">${esc(text)}</div>
     <div class="btn-row" style="margin-top:12px">
       <button class="btn secondary" onclick="copyInquireText()">📋 复制询价文本</button>
-      <button class="btn" onclick="window.location.href='${SUPPLIER.phoneTel}'">📞 拨号</button>
+      <button class="btn" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
     </div>
-    <div class="supplier-brand">${esc(SUPPLIER.brandText)}</div>
-    <div class="supplier-brand" style="margin-top:6px">${esc(SUPPLIER.equipmentText)}</div>`;
+    <div class="supplier-brand">${esc(sp.brandText)}</div>
+    ${equipLine}`;
   openSheet(html);
 }
-function copyInquireText() { const t = $('inquireText').textContent; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + SUPPLIER.contact), () => toast('复制失败')); }
+function copyInquireText() { const t = $('inquireText').textContent; const who = _activeSupplier ? _activeSupplier.contact : SUPPLIER.contact; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + who), () => toast('复制失败')); }
 
 /* ① 单个试剂询价（来自试剂详情/列表） */
 function inquireReag(id) {
@@ -1388,7 +1424,7 @@ function inquireReag(id) {
   const st = reagStatus(r);
   const reason = st.text === '需补货' ? '库存不足' : st.text === '已过期' ? '已过期需替换' : st.text.includes('临期') ? `临期（剩${daysUntil(r.expiry)}天）` : '常规采购';
   const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min) || 1);
-  openInquireSheet([{ name: r.name, spec: r.spec || r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '请推荐' }], '询价 · ' + r.name);
+  openInquireSheet([{ name: r.name, spec: r.spec || r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '请推荐' }], '询价 · ' + r.name, 'reagent');
 }
 
 /* ② 批量询价（来自效期日历采购清单） */
@@ -1408,43 +1444,46 @@ function inquireExpiring() {
     items.push({ name: r.name, spec: r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '' });
   }));
   if (!items.length) { toast('当前没有需要询价的试剂'); return; }
-  openInquireSheet(items, '采购清单询价（' + items.length + ' 项）');
+  openInquireSheet(items, '采购清单询价（' + items.length + ' 项）', 'reagent');
 }
 
-/* ③ 仪器校准 / 维修联系服务商 */
+/* ③ 仪器校准 / 维修联系服务商（默认走康腾，代理设备） */
 function contactService(it) {
+  const sp = pickSupplier('instrument'); _activeSupplier = sp;
   const d = daysUntil(it.calibration);
   const reason = d < 0 ? `已过期 ${-d} 天` : d <= 30 ? `剩 ${d} 天到期` : '预防性维护';
-  const text = `【实验台 · 仪器服务咨询】\n\n仪器：${it.name}\n备注：${it.note || '—'}\n校准到期：${it.calibration}（${reason}）\n\n请${SUPPLIER.contact}协助：\n  1. 校准/检定服务报价\n  2. 备件与耗材配套\n  3. 如有现货请告知货期\n\n---\n${SUPPLIER.shortName} · ${SUPPLIER.phone} · ${SUPPLIER.email}`;
+  const text = `【实验台 · 仪器服务咨询】\n\n仪器：${it.name}\n备注：${it.note || '—'}\n校准到期：${it.calibration}（${reason}）\n\n请${sp.contact}协助：\n  1. 校准/检定服务报价\n  2. 备件与耗材配套\n  3. 如有现货请告知货期\n\n---\n${sp.shortName} · ${sp.phone} · ${sp.email}`;
+  const equipLine = sp.equipmentText ? `<div class="supplier-brand" style="margin-top:6px">${esc(sp.equipmentText)}</div>` : '';
   const html = `<div class="grabber"></div><h2>联系服务商</h2>
-    <p class="hint">${it.name} 校准${d < 0 ? '已过期' : '临近'}，扫码添加 ${SUPPLIER.contact} 咨询校准/检定/维护服务。</p>
+    <p class="hint">${it.name} 校准${d < 0 ? '已过期' : '临近'}，扫码添加 <b>${sp.contact}</b>（${sp.shortName}）咨询校准/检定/维护服务。</p>
     <div class="supplier-card">
-      <img class="supplier-qr" src="${SUPPLIER.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
+      <img class="supplier-qr" src="${sp.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
       <div class="supplier-info">
-        <div class="supplier-name">${SUPPLIER.name}</div>
-        <div class="supplier-tag">${SUPPLIER.tagline}</div>
-        <div class="supplier-line">联系人：<b>${SUPPLIER.contact}</b></div>
-        <div class="supplier-line">手机：<a href="${SUPPLIER.phoneTel}">${SUPPLIER.phone}</a></div>
-        <div class="supplier-line">邮箱：${SUPPLIER.email}</div>
+        <div class="supplier-name">${sp.name}</div>
+        <div class="supplier-tag">${sp.tagline}</div>
+        <div class="supplier-line">服务对象：<b>${sp.audience}</b></div>
+        <div class="supplier-line">联系人：<b>${sp.contact}</b></div>
+        <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
+        <div class="supplier-line">邮箱：${sp.email}</div>
       </div>
     </div>
     <div class="copy-box" id="svcText">${esc(text)}</div>
     <div class="btn-row" style="margin-top:12px">
       <button class="btn secondary" onclick="copyServiceText()">📋 复制服务需求</button>
-      <button class="btn" onclick="window.location.href='${SUPPLIER.phoneTel}'">📞 拨号</button>
+      <button class="btn" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
     </div>
-    <div class="supplier-brand">${esc(SUPPLIER.brandText)}</div>
-    <div class="supplier-brand" style="margin-top:6px">${esc(SUPPLIER.equipmentText)}</div>`;
+    <div class="supplier-brand">${esc(sp.brandText)}</div>
+    ${equipLine}`;
   openSheet(html);
 }
-function copyServiceText() { const t = $('svcText').textContent; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + SUPPLIER.contact), () => toast('复制失败')); }
+function copyServiceText() { const t = $('svcText').textContent; const who = _activeSupplier ? _activeSupplier.contact : SUPPLIER.contact; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + who), () => toast('复制失败')); }
 
 /* ④ 实验模板推荐耗材 → 询价 */
 function inquireTemplate(tplId) {
   const t = load(STORE.templates, []).find((x) => x.id === tplId);
   if (!t || !t.consumables) return;
   const items = t.consumables.map((c) => ({ name: c.name, spec: c.cat, qty: 1, unit: '份', reason: '模板「' + t.title + '」推荐', brandHint: c.brand }));
-  openInquireSheet(items, '模板耗材询价 · ' + t.title);
+  openInquireSheet(items, '模板耗材询价 · ' + t.title, 'template');
 }
 
 /* ============================================================

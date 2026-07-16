@@ -59,24 +59,24 @@ function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
 
 /* ---------------- 种子数据 ---------------- */
 const DEFAULT_TEMPLATES = [
-  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
+  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', type: '蛋白', raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
     consumables: [
       { name: '超滤管 15 mL 30 kDa', brand: '迈博瑞', cat: '耗材' },
       { name: '0.22 μm 针头滤器', brand: '迈博瑞', cat: '耗材' },
       { name: 'PBS 缓冲液 (1× pH7.4)', brand: 'Biosharp/迈邦', cat: '试剂' },
       { name: '50 mL 离心管', brand: 'Bioland/耐思', cat: '耗材' },
-      { name: '10 mL 血清移液管', brand: 'Bioland/Nest', cat: '耗材' }
+      { name: '10 mL 血清移液管', brand: 'Bioland/Nest', cat: '耗材' },
     ] },
-  { id: 'tp2', title: '质粒小量提取', raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱',
+  { id: 'tp2', title: '质粒小量提取', type: '分子', raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱',
     consumables: [
       { name: 'LB 液体培养基', brand: 'Solarbio', cat: '试剂' },
       { name: '卡那霉素 (50 mg/mL)', brand: 'Solarbio', cat: '试剂' },
       { name: 'P1/P2/N3 缓冲液', brand: '通用', cat: '试剂' },
       { name: '1.5 mL EP 管', brand: 'Axygen/Bioland', cat: '耗材' },
       { name: '质粒小提试剂盒', brand: '通用', cat: '试剂' },
-      { name: 'Benzonase 核酸酶 (去RNA)', brand: 'NEB', cat: '试剂' }
+      { name: 'Benzonase 核酸酶 (去RNA)', brand: 'NEB', cat: '试剂' },
     ] },
-  { id: 'tp3', title: '细胞传代', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶',
+  { id: 'tp3', title: '细胞传代', type: '细胞培养', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶',
     consumables: [
       { name: '完全培养基 (DMEM/RPMI)', brand: '迈邦/Lonza', cat: '试剂' },
       { name: '0.25% 胰酶-EDTA', brand: '迈邦/Biosharp', cat: '试剂' },
@@ -84,17 +84,163 @@ const DEFAULT_TEMPLATES = [
       { name: 'T25 细胞培养瓶', brand: 'Bioland/Nest', cat: '耗材' },
       { name: '胎牛血清 FBS', brand: 'Bioland FORLAB/Lonza', cat: '试剂' },
       { name: '10 mL 移液管', brand: 'Bioland/Nest', cat: '耗材' },
-      { name: '15/50 mL 离心管', brand: 'Bioland/Nest', cat: '耗材' }
+      { name: '15/50 mL 离心管', brand: 'Bioland/Nest', cat: '耗材' },
     ] },
-  { id: 'tp4', title: '蛋白纯化（AKTA）', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL',
+  { id: 'tp4', title: '蛋白纯化（AKTA）', type: '蛋白', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL',
     consumables: [
       { name: 'Protein A 填料 / 预装柱', brand: '楚天微球', cat: '耗材' },
       { name: 'Tris/Hepes/NaCl 等缓冲液组分', brand: 'Sigma/Solarbio', cat: '试剂' },
       { name: '超滤离心管 30 kDa', brand: '迈博瑞', cat: '耗材' },
       { name: '0.22 μm 滤膜', brand: '迈博瑞/Sigma', cat: '耗材' },
       { name: 'C-Flex 工艺管路', brand: '圣戈班', cat: '耗材' },
-      { name: 'Benzonase 核酸酶', brand: 'NEB/迈博瑞', cat: '试剂' }
-    ] }
+      { name: 'Benzonase 核酸酶', brand: 'NEB/迈博瑞', cat: '试剂' },
+    ] },
+  { id: 'sc12', title: '贴壁细胞传代', type: '细胞培养', preset: true, raw: '取出细胞，显微镜下观察细胞状态和密度，判断是否需要传代。；将所需耗材，如培养皿等放入超净台，打开紫外照射，灭菌30min。从4℃冰箱中取出胰酶、PBS、完全培养基，置于37℃水浴锅中预热。；紫外照射结束后，将细胞放入超净台中，吸去培养基（稍稍倾斜，好吸一些），贴壁加入2ml PBS润洗细胞（这是10cm大皿，中皿的话加入0.5-1ml足够），贴壁是；向培养皿中加入预热好的的胰酶（大皿1ml，中皿0.5ml），轻轻晃动培养皿使胰酶浸润到所有细胞层。；将培养皿放入37℃培养箱中消化，细胞消化时间约2min。不同细胞，消化时间会不同，需要自行探索。；可以在第一次消化的时候，每隔1min拿出来观察一下，如何判断已经消化好了：显微镜下观察，约70-80%细胞收缩变圆后，轻拍培养容器外壁，可看到细胞层像流沙一样脱；加入2ml完全培养基终止消化（中皿加入1ml即可）。通过轻微吹打使细胞脱离培养皿底部，使全部细胞完全脱离皿底。；把细胞悬液转移到15ml离心管中，再加入3ml培养基润洗培养皿后，转移到离心管中。室温，1000 rpm 离心 5 min。吸弃上清，用完全培养基重悬细胞。；吸取部分细胞加入到新的培养皿中，并添加足够的培养基（大皿10ml，中皿4-5ml）。轻轻摇晃均匀。马克笔在培养皿盖上做好标记，包括细胞系名称，代数，传代时间，传',
+    consumables: [
+      { name: '完全培养基(DMEM/RPMI)', brand: '迈邦/Lonza', cat: '试剂' },
+      { name: '0.25%胰酶-EDTA', brand: '迈邦/Biosharp', cat: '试剂' },
+      { name: 'PBS(1×)', brand: '迈邦/Biosharp', cat: '试剂' },
+      { name: 'T25细胞培养瓶', brand: 'Bioland/Nest', cat: '耗材' },
+      { name: '胎牛血清FBS', brand: 'Bioland/Lonza', cat: '试剂' },
+      { name: '10mL移液管', brand: 'Bioland/Nest', cat: '耗材' },
+      { name: '15/50mL离心管', brand: 'Bioland/Nest', cat: '耗材' },
+    ] },
+  { id: 'sc26', title: '细胞冻存及复苏', type: '细胞培养', preset: true, raw: 'DMSO：血清：培养基=1：2：7。培养基就用养细胞用的培养基。现配现用。；如果实验室用的是购买的冻存液，那就不用配。；将待冻存细胞培养至对数生长期，且状态良好。吸弃培养基，贴壁加入PBS清洗2次（大皿1ml，中皿0.5ml）。；加入预热的胰酶（大皿1ml，中皿0.5ml），轻轻晃动培养皿，使胰酶浸润到所有细胞。；放入培养箱消化2-3min（具体消化时间跟平时传代一样）。；加入2ml完全培养基终止消化（中皿加1ml即可）。；轻轻吹打细胞，使所有细胞脱落，转移至15ml离心管中，1000rpm离心5min。离心过程中可标记冻存管（冻存时间，细胞名称等）；吸弃上清，加入1ml培养基重悬后，细胞计数。；再次1000rpm离心5min，吸弃上清后，根据计数结果，加入冻存液重悬，使细胞浓度为1x106个/ml。；将细胞和培液转移至离心管，1000rpm离心5min。；4℃ 20min→-20℃ 30min→-80℃过夜→转移至液氮保存。；如果实验室用的是购买的非程序性冻存液，直接存放到-80℃中，短期可保存在-80℃，长期冻存需转移至液氮。；水浴锅打开，预热至37℃。；提前准备好15ml离心管，加入5ml预热好的完全培养基。；将细胞从液氮中取出，迅速放入干净的PE手套中，投入到水浴锅中。（放入PE手套，能够有效隔绝水浴锅导致的污染，同时不影响温度）；晃动冻存管管，加速细胞融化。（1min内融化完全）；取出冻存管，酒精喷洒消毒后，转移至超净台，吸取冻存液，转移至至准备好的15ml离心管中。；1000rpm离心5min；吸弃上清（除去细胞碎片和DMSO），加入1ml完全培养基重悬细胞，转移至培养皿中，添加足量培养基混匀后，正常培养即可。',
+    consumables: [
+      { name: '冻存液(90%FBS+10%DMSO)', brand: '通用', cat: '试剂' },
+      { name: '完全培养基', brand: '迈邦/Lonza', cat: '试剂' },
+      { name: 'DMSO', brand: 'Sigma', cat: '试剂' },
+      { name: '冻存管', brand: 'Bioland/Nest', cat: '耗材' },
+      { name: '程序降温盒', brand: '通用', cat: '耗材' },
+      { name: 'PBS(1×)', brand: '迈邦', cat: '试剂' },
+    ] },
+  { id: 'sc25', title: 'Transwell迁移/侵袭测定实验', type: '细胞功能', preset: true, raw: '吸去细胞培养基，加入无血清培养基饥饿12h。；Transwell小室制备；如果是迁移实验可以省去此步骤。；在冰上，用预冷的无血清培养基将基质胶稀释到1mg/ml（基质胶室温下会凝固）。；取60µL基质胶溶液，垂直加入Transwell小室中，均匀平铺在小室底部，注意不要产生气泡。于37℃孵育1-3小时，使基质胶聚合成凝胶薄膜。；小心吸出未结合的基质胶。每孔加入100ul无血清培养基后，于培养箱孵育30min，进行基底膜水化。；小心吸出小室中的液体，检查液体是否穿过小室进入到24孔板中，如果没有，即可用于细胞接种。；在24孔板下室中加入500ul含10% FBS的完全培养基，用镊子将Transwell小室置于24孔板内。；将用无血清培养基饥饿了12h的细胞消化，离心弃上清后，用PBS洗1次，用无血清培养基重悬细胞，并调整到合适的细胞密度（一般为1-10x105cells/ml，根；吸取200ul细胞悬液加入到上室，放入培养箱培养12-48h（具体时间要参考文献，根据实验调整）。；到达设定的检测时间后，取出Transwell小室，吸干培养基，用PBS浸湿的棉签轻轻擦拭小室，除去膜表面未迁移的细胞，但是要小心不要刮破膜。；取新的24孔板，加入600ul 4%多聚甲醛，将小室放入后，室温固定30min。；取出小室，浸入到PBS中洗一次。；在新的24板孔中，加入600ul结晶紫染色液，将小室放入其中，室温染色15min。；取出小室，浸入到PBS中，洗3-5次。（可以在不同的板孔中加入800ul PBS，依次放入其中涮洗）。；晾干水分，即可进行镜检计数。',
+    consumables: [
+      { name: 'Matrigel/胶原', brand: 'Corning/通用', cat: '耗材' },
+      { name: 'Transwell小室', brand: 'Corning/Bioland', cat: '耗材' },
+      { name: '完全培养基', brand: '迈邦/Lonza', cat: '试剂' },
+      { name: '0.25%胰酶', brand: '迈邦', cat: '试剂' },
+      { name: '结晶紫染液', brand: 'Sigma/Solarbio', cat: '试剂' },
+      { name: '4%多聚甲醛', brand: '通用', cat: '试剂' },
+      { name: '24孔板', brand: 'Bioland/Nest', cat: '耗材' },
+    ] },
+  { id: 'sc7', title: '慢病毒制备及转染', type: '细胞转染', preset: true, raw: '45um滤器；Polybrene；包病毒前一天，将生长状态良好的293T细胞接种到6孔板中，密度约40%（使在转染的时候，密度达到70%左右即可）。；细胞转染（把病毒包装质粒转入293T细胞中）；使用脂质体转染试剂将病毒包装质粒转入到293T细胞中，按照说明书要求进行。；三质粒转染常用的比例是：10ug含目的基因质粒+7.5ug pSPAX2+2.5ug pMD2.G（6孔板或中皿）。；质粒和脂质体转染试剂的混合液加入到细胞中后，放于培养箱中培养。；转染6h后换液，转染48h后收集病毒上清液于50ml离心管中，4℃保存。培养皿中补充新鲜培养基继续培养24h。再次收集病毒上清液于50ml离心管中，将所有的病毒；转染前一天，将生长良好的靶细胞接种于6孔板，接种密度能保证第二天转染时细胞密度达到40%-50%即可。；慢病毒转染；第二天，吸弃旧的培养基，加入适量新鲜培养基以及适量病毒上清液（6孔板总体积为2ml，我们一般是1ml培养基+1ml病毒液）。加入适量polybrene，使pol；24h后，吸弃病毒液（注意生物安全），更换为新鲜的完全培养基，继续培养。之后正常培养，传代即可。；可采用挑单克隆或者分选等方式获得稳转株。',
+    consumables: [
+      { name: '293T细胞', brand: '通用', cat: '试剂' },
+      { name: '脂质体转染试剂', brand: 'Thermo', cat: '试剂' },
+      { name: '质粒(目的/pSPAX2/pMD2.G)', brand: '通用', cat: '试剂' },
+      { name: 'Polybrene', brand: 'Sigma', cat: '试剂' },
+      { name: '0.45μm滤器', brand: '迈博瑞', cat: '耗材' },
+      { name: '6孔板', brand: 'Bioland/Nest', cat: '耗材' },
+    ] },
+  { id: 'sc11', title: '细胞免疫荧光染色', type: '免疫荧光', preset: true, raw: '2%的Triton X-100（PBS配制）；5%的BSA（PBS配制）或者10%的与二抗同源的山羊血清（PBS配制）；一抗、荧光二抗、DAPI染料；根据实验需求选择合适大小的盖玻片，一般6孔板就用24*24的即可（你也可以买专门的细胞爬片，除了贵没毛病）。；将盖玻片置于浓硫酸中浸泡并过夜，第二天用流动水冲洗20遍，再放入无水乙醇中浸泡6小时。取出，用ddH2O冲洗3次，烘干后，高压消毒。（着急用也可以用75%乙醇静；在孔板里准备放爬片的位置滴少量培养基，然后放玻片，防止加细胞悬液时玻片漂起。根据实验需求选择密度的细胞加入到6孔板中，放入培养箱中培养。；按照实验需求，培养到一定时间，取出孔板，使用镊子出去爬片（有时候爬片和孔板贴合的很紧，可以借助注射器针头撬起来再取爬片）。；将爬片放入培养皿中，使用PBS将爬片浸洗3次，每次3min。加入4%的多聚甲醛，完全浸没盖玻片，室温固定15min。然后用PBS浸洗3次，每次5min。；细胞透化、封闭及染色；使用0.2%的Triton X-100（PBS配制）室温透化细胞20min（如果要染色的是膜表面蛋白，这一步可以不做。透化的目的是让抗体能进入到细胞内部）。PB；加入5%的BSA（PBS配制）或者10%的与二抗同源的山羊血清（PBS配制），室温孵育1h进行封闭（这一步结束后，吸去封闭液即可，不需要洗涤）。；根据抗体说明书，使用封闭液稀释一抗，加入足量的一抗稀释液，4℃过夜孵育（置于摇床上）。；孵育完成后，用PBST洗3次，每次10min。加入足量的荧光二抗稀释液，室温孵育1h。PBST洗3次，每次5min。；滴加DAPI染色液，避光染色5-15min（一般5min就够了）。PBST洗3次，每次5min。；用吸水纸吸干爬片上的液体，用含抗荧光淬灭剂的封片液封片即可。',
+    consumables: [
+      { name: '4%多聚甲醛', brand: '通用', cat: '试剂' },
+      { name: '0.2% Triton X-100', brand: 'Sigma', cat: '试剂' },
+      { name: '一抗(目标蛋白)', brand: 'Abcam/BioLegend', cat: '试剂' },
+      { name: '二抗(荧光标记)', brand: 'Abcam', cat: '试剂' },
+      { name: 'PBST', brand: '迈邦', cat: '试剂' },
+      { name: '抗荧光淬灭封片液', brand: '通用', cat: '试剂' },
+      { name: '共聚焦玻片', brand: '通用', cat: '耗材' },
+    ] },
+  { id: 'sc1', title: 'Western Blot 全流程详解', type: '蛋白', preset: true, raw: '组织：剪碎后放入EP管中，加入适量裂解液（20mg可加入150-250ul），匀浆器破碎后冰上裂解10-30min。裂解充分后，4℃，12000rpm离心5mi；悬浮细胞：4℃，（离心速度根据细胞类型决定），离心5min去除培养基，加入预冷的PBS清洗后离心去除PBS（清洗3次）。加入适量裂解液，冰上裂解10-30min；贴壁细胞：吸弃培养基，加入预冷的PBS清洗后，吸弃（清洗3次，冰上操作）。加入适量裂解液（1x106细胞加入100-200ul），枪边吹边裂解。用细胞刮刮下细胞；常使用BCA法进行定量。除此以外，还有Lowry法以及Bradford法。；定量完成后，按4:1比例混合蛋白样本与5×Loading Buffer（如40ul样本+10ul Buffer）。金属浴95℃，10min。12000rpm，离；SDS PAGE配胶；安装好胶板和胶架后，进行检漏。（加入蒸馏水，放置一段时间后，观察蒸馏水是否减少，确认不漏后，倒去蒸馏水，垫好吸水纸，倒立切斜放置，吸干内部残留蒸馏水。）；配制并加入分离胶。分离胶配方如下，根据实际需要选择合适浓度的分离胶（这一步尤其要小心，记好哪种组分加过了，哪种还没加）。配好后加入到胶板中，加至两侧夹住玻璃板的；约20-30min后分离胶凝固，倒去上层无水乙醇，用吸水纸吸干净液体。配制上层浓缩胶。配方如下。配好后加入到胶板中，小心插入梳子。；浓缩胶凝固后，小心拔去梳子，组装好电泳装置，内层加满电泳缓冲液，外侧加2-3cm深。设计好样品点样顺序，即可点样。15孔泳道最大上样量30ul，10孔最大上样量；点样结束，补充外侧电泳缓冲液至上下胶分界线处，盖好盖子（电极）。恒压80V电泳。；进入分离胶后，调整电压为130V，继续电泳，溴酚蓝（大小约1 kDa）跑至底部即终止电泳。；PVDF膜在甲醇中浸泡1 min转入转膜缓冲液中，滤纸也泡入转膜缓冲液中。按顺序在转膜夹板的海绵层上放两层滤纸、胶、膜、两层滤纸，注意逐出气泡，封紧后放入电转槽；转膜结束后，TBST洗膜3次，每次5min（置于摇床上）。将膜放于封闭液（5%脱脂奶粉）中置于摇床上，室温孵育1h或者4℃过夜。；将膜置于有足量一抗的盒子或者封闭袋子中，置于摇床，室温孵育1h或4℃过夜。；一抗孵育结束后，TBST洗膜3次，每次5min（置于摇床上）。；根据一抗来源选择合适的二抗，按推荐比例稀释后，将膜置于其中，置于摇床，室温孵育1h。；二抗孵育结束后，TBST洗膜3次，每次5min（置于摇床上）。；按照显影液说明书要求进行使用。多设置一些曝光时间。',
+    consumables: [
+      { name: '10×电泳缓冲液', brand: '通用', cat: '试剂' },
+      { name: '30%丙烯酰胺', brand: 'Sigma', cat: '试剂' },
+      { name: '转膜缓冲液', brand: '通用', cat: '试剂' },
+      { name: 'PVDF膜', brand: '迈博瑞/Sigma', cat: '耗材' },
+      { name: '一抗', brand: 'Abcam/BioLegend', cat: '试剂' },
+      { name: '二抗(HRP)', brand: 'Abcam', cat: '试剂' },
+      { name: 'ECL发光液', brand: '通用', cat: '试剂' },
+      { name: '脱脂奶粉', brand: '通用', cat: '试剂' },
+    ] },
+  { id: 'sc8', title: '蛋白纯化（镍柱）', type: '蛋白', preset: true, raw: '2M NaOH溶液；100mM NaSO4溶液；ddH2O；Ni2+ 能够螯合配体填充并固定在层析介质上，组氨酸（His）带有一个咪唑基团，该基团能够与 Ni2+ 形成配位键并选择性结合，而不带有 His-tag的蛋白不；随后通过高浓度的咪唑缓冲液与 His-Tag 竞争结合 Ni2+，将目的蛋白洗脱并进行收集，从而得到较为纯净的目的蛋白。；柱子使用太久积累了很多杂蛋白，或者Ni2+褪去了，就需要用用EDTA将Ni2+螯合下来，再用NaOH清洗柱料后，重新螯合Ni离子，即可完成镍柱重生。；将Ni2+亲和柱接在泵头上，用ddH2O冲洗5个柱体积。；用EDTA溶液冲洗5个柱体积，用ddH2O冲洗5个柱体积。；使用0.2 M NaOH溶液冲洗5个柱体积，用ddH2O冲洗10个柱体积。；使用NiSO4溶液填充亲和柱，冲洗5个柱体积，用ddH2O冲洗5个柱体积。；用低浓度咪唑盐缓冲液重悬菌块，然后进行超声破碎。这里需要自己去优化超声破碎的实验条件（破碎后清澈透亮、匀质为佳）。然后4℃，12000rpm，离心30min，收；用低浓度咪唑盐缓冲液冲洗柱子，大概5个柱体积。；将样品加入到柱子中。流速要低一点。使用5个柱体积的低浓度咪唑缓冲液（20mM，但是具体浓度是要根据实验进行调整的，可以查文献找找资料）缓慢冲洗柱子，去除非特异性；使用高浓度咪唑洗脱液将目的蛋白从镍柱上洗脱下来，并收集。在首次纯化某个目的蛋白的实验中，要设置多个梯度的咪唑洗脱液（如50mM，100mM，200nM，300m；最后用500mM咪唑冲洗柱子，2个柱体积，再用ddH2O冲洗5个柱体积，再用20%乙醇冲洗3个柱体积后，于4℃保存在20%乙醇溶液中。',
+    consumables: [
+      { name: 'Ni-NTA树脂', brand: '楚天微球/通用', cat: '耗材' },
+      { name: '平衡缓冲液(20mM Tris+500mM NaCl)', brand: 'Sigma/Solarbio', cat: '试剂' },
+      { name: '咪唑', brand: 'Solarbio', cat: '试剂' },
+      { name: '洗脱缓冲液(300mM咪唑)', brand: 'Sigma', cat: '试剂' },
+      { name: '超滤管', brand: '迈博瑞', cat: '耗材' },
+      { name: '层析柱', brand: '通用', cat: '耗材' },
+    ] },
+  { id: 'sc13', title: '考马斯亮蓝染色', type: '蛋白', preset: true, raw: '通过SDS-PAGE电泳分离蛋白质，并根据蛋白质的大小和电荷选择合适的凝胶和电泳条件。；电泳结束后，取出凝胶，放置于干净的器皿中（我们6孔板，12孔板这些拆过的盒子都用来做WB实验了），用ddH2O清洗3次，每次30sec。；倒去ddH2O，加入考马斯亮蓝染色液，确保染色液完全覆盖凝胶。放置于摇床上振荡染色。一般需要染色30min-2h（取决于凝胶厚度），直至凝胶与染色液颜色十分接近；将凝胶转移至脱色液中，置于摇床上脱色至条带清晰。期间，可数次更换脱色液。',
+    consumables: [
+      { name: '考马斯亮蓝R250', brand: 'Sigma', cat: '试剂' },
+      { name: '甲醇', brand: 'Sigma', cat: '试剂' },
+      { name: '乙酸', brand: 'Solarbio', cat: '试剂' },
+      { name: '脱色液', brand: '通用', cat: '试剂' },
+      { name: '摇床', brand: '通用', cat: '耗材' },
+    ] },
+  { id: 'sc3', title: 'RNA抽提（Trizol法）', type: '分子', preset: true, raw: '动物组织/植物材料：将准确称取的RNA提取样品转移液氮预冷的研钵中，用研杵研磨组织（研磨过程中需要不断向研钵中补加液氮），直至研磨成粉末状，然后向粉末中加入适量；悬浮细胞：4℃，12000rpm，离心5min去除培养基，加入预冷的PBS清洗后离心去除PBS（清洗3次）。加入适量Trizol（一般1x106-1x107细胞；贴壁细胞：吸弃培养基，加入预冷的PBS清洗后，吸弃（清洗3次，冰上操作）。加入适量Trizol（一般1x106-1x107细胞加入1ml Trizol）。用细胞；按照1ml Trizol加入200ul氯仿的比例假如氯仿，充分混匀后室温放置15min（不可用涡旋振荡仪）。；4℃，12000rpm，离心15min。小心取出离心管，此时匀浆液分为三层：上清液（含RNA）、中间蛋白层、下层有机相。吸取上清液转移至另新的离心管中（1ml ；向离心管中加入相同体积预冷的异丙醇，上下颠倒混匀。-20℃放置10min后，4℃，12000rpm，离心15min。吸弃上清（先用大枪头吸，再用小枪头吸保护沉淀；使用DEPC水和无水乙醇配制75%乙醇。向沉淀中加入和初始Trizol等体积的75%乙醇，漂洗RNA。4℃，12000rpm，离心10min，吸弃上清。打开离心；加入适量DEPC水溶解RNA，在Nanodrop上测定RNA浓度。纯度完好的RNA：1.8＜260/280＜2.0，260/230>2',
+    consumables: [
+      { name: 'Trizol', brand: 'Thermo/Invitrogen', cat: '试剂' },
+      { name: '氯仿', brand: 'Sigma', cat: '试剂' },
+      { name: '异丙醇', brand: 'Sigma', cat: '试剂' },
+      { name: '无水乙醇', brand: 'Solarbio', cat: '试剂' },
+      { name: 'DEPC水', brand: '通用', cat: '试剂' },
+      { name: '1.5mL EP管', brand: 'Axygen/Bioland', cat: '耗材' },
+    ] },
+  { id: 'sc5', title: 'qPCR实验流程', type: 'PCR', preset: true, raw: '每个样品，每对引物需要做3个平行复孔；同时每对引物需要2个阴性对照（详细在第2步配制反应体系中）。；稀释cDNA：一般将逆转录产物稀释2-10倍（根据实验情况再调整，最终是qPCR Ct值在18-28范围内的稀释倍数比较好）。；在超净台中，用马克笔在qPCR板上划线。按照要q的基因不同，划分成一个一个不同的小区域。这一步是为了防止加样时眼花，加错孔（试过一次就知道，96孔加样，太容易出；取出SYBR Green，置于冰上溶解。；SYBR Green：10ul；F primer：0.5ul  R primer：0.5ul；ddH2O：4ul  cDNA：5ul；每个样品，每对引物需要做3个平行复孔；同时每对引物需要2个阴性对照。；eg：有3个样品，2对引物+1对内参基因引物。配置体系时：1对引物用1个EP管，这里加内参引物共3对，就准备3个EP管。；内参的作用主要是校正样品间的差异。；1个EP管中（即针对同一个引物），需要配3（样品数）*3（复孔）+2（阴性对照）=11个体系。一般来说，因为体系配好后分到各个孔的过程会有损耗，所以会多配1-2；切记：这种配置方式，配mix的时候，样本不能加进去，等转移到对应的孔里，再分别添加样本。；确保封板膜与pcr板紧密贴合，避免出现气泡和松动，防止样本蒸发和交叉污染。；离心，确保所有组分混匀。（我们离心条件一般是：4℃，3000rpm，3min）；预变性（Holding Stage）：95℃ 5min；循环阶段（Cycling Stage）：95℃ 10sec；60℃ 30sec',
+    consumables: [
+      { name: 'SYBR Green Mix', brand: 'Thermo/Bio-RAD', cat: '试剂' },
+      { name: '引物(目的/内参)', brand: '通用', cat: '试剂' },
+      { name: 'ddH₂O', brand: '通用', cat: '试剂' },
+      { name: 'qPCR板/八连管', brand: 'Axygen', cat: '耗材' },
+      { name: '封板膜', brand: 'Axygen/Bioland', cat: '耗材' },
+    ] },
+  { id: 'sc27', title: 'PCR实验原理及详细步骤', type: 'PCR', preset: true, raw: '高温变性：双链DNA模板经过高温（90℃-96℃）加热一定时间(10~30s)后，氢键断裂，解链变成两条单链DNA。；低温退火：当温度降至55℃-65℃左右（根据引物Tm值设置）时，引物与模板DNA单链的互补配对，形成局部双链。；延伸：将温度调至70℃-75℃左右（DNA聚合酶最适反应温度），在Taq DNA聚合酶的作用下，以dNTP为原料，从引物的3′端开始按照5′→3′端的方向延伸，；模板可以是任意来源的DNA（也可以是RNA，此处不做讨论）。比如基因组DNA，质粒DNA，cDNA，无论是从细胞还是组织来源，或者细菌真菌都可以。不同来源有不同；前面有一篇引物设计讲得很详细了，可以去瞅瞅。；根据你的实验规划，算一下要做多少组PCR，因为每一组要加的PCR预混液、ddH2O、以及引物（针对同一基因，不同模板的PCR，此时引物相同，模板不同。如果是针对；配反应体系是很多实验都要用到的操作。；以上体系不是一成不变的。；一般PCR mix都是2X的，意味着如果配20ul体系，就加10ul。30ul体系，就加15ul。；引物一般0.5-1ul，只要上下游引物一致即可。；模板体积取决于浓度，浓度高就少一点。；最后用ddH2O补足即可。；这里就可以看到，如果要做10管PCR，分开一管一管加这些试剂，非常耗费时间，而且像引物这样小体积的，误差会比较大。；这样，在1个ep管中配制了198 ul的体系，混匀后分装到10个PCR管中，每管18 ul，再分别加入2 ul对应的模板。加样过程直接贴壁加入即可，不需要特别注；这一步主要是根据引物的Tm、扩增片段的长度以及Taq 酶来决定的。；要注意的是：从PCR仪中取出后，还要瞬时离心一次，因为温度高，很多液体蒸发导致不在底部。',
+    consumables: [
+      { name: 'PCR Mix(高保真酶)', brand: 'NEB/Thermo', cat: '试剂' },
+      { name: 'dNTP', brand: 'NEB', cat: '试剂' },
+      { name: 'Taq酶', brand: 'NEB', cat: '试剂' },
+      { name: '引物', brand: '通用', cat: '试剂' },
+      { name: '琼脂糖', brand: 'Solarbio', cat: '试剂' },
+      { name: 'PCR管', brand: 'Axygen', cat: '耗材' },
+    ] },
+  { id: 'sc4', title: '分子克隆全流程（T4 连接酶）', type: '分子', preset: true, raw: '对目的基因PCR（设计引物要带上酶切位点，酶切位点选择质粒上有的）获取片段，跑胶，鉴定长度，长度无误，才可以进行下一步（多p一点，免得后面做连接不够用）。；胶回（ps：切胶之前就打开水浴锅，75℃，节约时间）。胶回按照试剂盒protocol来就可以。测定浓度。新手一定记住用完水浴锅关掉或者调低温度，不然很容易烧干的；按照设计的酶切位点选择内切酶。配30ul体系：酶各1ul，酶切目标10ug，剩下的用双蒸水补齐。37℃水浴锅里酶切6h。（配两个体系，基因片段和质粒各一个体系进；载体质粒切开了，环状DNA和线型DNA跑胶的速度就不一样，以此来判断是否切开了。记住，一定要同时跑一个没有经过酶切的载体，作为对照。这样才方便判断有没有切开。基；SolutionI酶：    5ul；片段：          4ul；载体：          1ul；片段和载体的量不是固定的，根据浓度做调整就好。一般质粒：目的片段（摩尔比）=1:3-1:10之间。；默认每个核苷酸分子量是相同的，那单个DNA（无论是质粒还是目的片段）的质量和bp数成正比。这样去计算用量。；第二天早上转化，取感受态菌和连接产物，冰上融化。；将连接产物转移到菌中，混匀，放冰上30min。；热击：42℃，90s（严格步骤），放冰上2min。；加入800ul LB培养液，37℃半小时（置于摇床）。此时把培养平板拿出放入培养箱预热。；30min孵育结束后，取出培养液，离心：3000g，3-5min。；吸去上清，留约50-60ul培养液，涂板。放到37℃培养箱中培养。（一般我是下午五六点放进去，差不多隔天早上八点多菌落长到合适大小）；第三天早上挑取单克隆，摇菌（我一般挑20个）：EP管里放1ml LB培养液，镊子酒精灯灭菌后，夹取小枪头，挑取单个菌落放入EP管中。37℃，摇床摇2-3h即可。；以摇好的菌液作为PCR模版（直接吸取2ul），使用目的片段的引物，进行菌液PCR，之后跑胶。这一步的目的是初步鉴定是否为阳性克隆。；然后挑选跑胶结果为阳性的菌液，送测序。剩余菌液保存在4℃。带测序结果出来后，挑选构建成功的菌液，进行后续操作。',
+    consumables: [
+      { name: '载体质粒', brand: '通用', cat: '试剂' },
+      { name: 'T4 DNA连接酶', brand: 'NEB', cat: '试剂' },
+      { name: '限制性内切酶', brand: 'NEB', cat: '试剂' },
+      { name: '感受态细胞', brand: '通用', cat: '试剂' },
+      { name: '胶回收试剂盒', brand: '通用', cat: '试剂' },
+      { name: 'LB培养基', brand: 'Solarbio', cat: '试剂' },
+    ] },
+  { id: 'sc127', title: '感受态细胞的制备--氯化钙法', type: '分子', preset: true, raw: '冷冻离心机（可离50ml离心管的），超净工作台或生物安全柜，高压蒸汽灭菌锅，细菌培养箱；1mol/l 氯化钙溶液（500ml以上，提前灭菌后4度备用），LB培养基（于1L锥形瓶中配置250ml培养基，好后立即灭菌，置于超净工作台中备用），1L锥形瓶；Day 1；将原始菌株（DH5α、stbl3等）在冰上溶解；；通过划线的方式将原始菌株接种到无抗性的LB固体培养基，过夜培养；；Day 2；挑取单菌斑至含5mL LB培养基（无抗）的50ml离心管中，在37℃，200rpm的培养箱，过夜培养；（时间控制在14-16h，务必预留充足的氧气以供工程菌生长；按1:100稀释至含250mL LB培养基（无抗）的1L锥形瓶中，使用透气膜（30mm）封口，37度培养2h后，每15min测一次OD600值至OD600值达到；将250mL菌液分装至4个50ml离心管中，放于冰上10min，使菌液冷却至0℃；；于4℃，2000xg，离心10min，倒出培养基，倒置10s使多余液体流尽，使用200ul枪头吸尽多余液体。（使用固定式离心转子，使菌体离心附着至管壁底部一侧且；每个离心管加2mL预冷的0.1mol/L CaCl2轻轻重悬细胞，再用CaCl2定容至30mL，冰上放置30min；（重悬时，手持离心管上部，将离心管下部置于冰；于4℃，2000xg，离心10min，倒出多余的培养基，倒置10s使多余液体流尽，使用200ul枪头吸尽多余液体。；用2mL 预冷的0.1mol/L CaCl2重悬细胞，4℃冰箱放置4h或过夜。；Day 3；每50ml离心管加858ul 50%甘油或者230 ul 80%的甘油（终浓度15%），在冰上将感受态按200ul分装，立即放入液氮中使其迅速降温，随后放置-8；注意：感受态制作是全程冰上操作保持低温，切忌温度剧烈变化，动作务必轻柔，以保证感受态细胞的效率。',
+    consumables: [
+      { name: 'CaCl₂(0.1M)', brand: 'Sigma', cat: '试剂' },
+      { name: 'LB培养基', brand: 'Solarbio', cat: '试剂' },
+      { name: '甘油', brand: 'Sigma', cat: '试剂' },
+      { name: '50mL离心管', brand: 'Bioland/Nest', cat: '耗材' },
+      { name: '冰浴盒', brand: '通用', cat: '耗材' },
+    ] },
+  { id: 'sc15', title: '免疫共沉淀（Co-IP）', type: '分子', preset: true, raw: '吸去培养皿中的培液，加入预冷的PBS洗细胞3次。；吸弃PBS，加入预冷的RIPA buffer（一般大皿加入1ml，中皿0.5ml即可）。；用预冷的细胞刮将细胞从培养皿上刮下，转移到1.5ml EP管中，放于冰盒里，冰盒放在摇床上，缓慢晃动裂解15min。；4℃，14000g，离心15min。将上清转移至新的EP管中。；BCA测定蛋白浓度。；准备Protein A agarose，用2倍体积的PBS 洗珠子，3000rpm，离心3min后，吸弃上清。再次加入PBS清洗，总共洗3次。；用PBS将琼脂糖珠配制成50%浓度（体积比）。整个过程需要剪掉枪尖部分，避免操作中破坏琼脂糖珠（因为枪头尖太细）。；第一种：抗体+裂解液孵育后，再加入微珠孵育，然后清洗，洗脱。优点是蛋白得率和纯度高。；第二种：抗体+微珠孵育，清洗后再加入裂解液，然后清洗，洗脱。抗体不够纯时，使用这种方法，可以去除掉抗体的非特异性结合。；第三种：抗体+裂解液+微珠一起孵育，然后清洗，洗脱。优点是节约时间，缺点是可能会有非特异性结合。；向蛋白裂解液中加入适量一抗。抗体量及终浓度要通过预实验（梯度稀释）或者查阅文献和说明书来确定。；4℃孵育过夜，旋转或振荡使结合充分。；第2天，加入适量的（根据蛋白量加，一般100ug蛋白加10ul）50%的Protein A agarose。4℃翻转孵育2-4h。；4℃，14000rpm瞬时离心5s，吸去上清，用预冷的RIPA buffer洗3遍，每次500ul。也可以使用PBS清洗。；加入适量（根据实验确定体积。比如最后想点3个孔道跑WB，1个点20ul，那就加70ul，多10ul是为了防止损耗）2×SDS上样缓冲液将琼脂糖珠-抗原抗体复合物；煮样5min，14000g离心1-2min，收集上清，电泳前再煮样5min变性。',
+    consumables: [
+      { name: 'RIPA裂解液', brand: '通用', cat: '试剂' },
+      { name: 'BCA蛋白定量试剂盒', brand: '通用', cat: '试剂' },
+      { name: 'Protein A/G agarose', brand: 'Abcam/通用', cat: '耗材' },
+      { name: '一抗', brand: 'Abcam', cat: '试剂' },
+      { name: '二抗', brand: 'Abcam', cat: '试剂' },
+      { name: 'PBS', brand: '迈邦', cat: '试剂' },
+    ] },
+  { id: 'sc18', title: 'GST Pull-down', type: '分子', preset: true, raw: '将诱饵蛋白的编码序列插入到表达载体中GST标签的下游。常用的GST表达载体为：pGEX-4T-1。；预实验：检测蛋白表达；将构建好的载体转化到BL21大肠杆菌感受态中，可以通过PCR或者测序等方式确定转化成功。；将转化成功的菌株扩大培养，到OD值为0.6-0.8时，加入IPTG诱导蛋白表达（可以设置不同的IPTG浓度梯度，如0.3，0.5，0.7mM，以找到最合适的浓度；诱导结束后，4℃，5000rpm，离心10min。吸弃上清，加入适量PBS，再次相同条件离心10min，吸弃上清，按照10ml菌液加1ml PBS的比例，加入P；破碎后，4℃，10000rpm离心15min，转移上清至新的EP管中，加入Loading buffer，煮样10min。；通过Western检测蛋白表达的效果。；蛋白大量表达及纯化鉴定；经过上述预实验，得到最适的IPTG诱导条件。对细菌进行大量培养，并诱导表达。；按照预实验的步骤，破碎后收集上清液（含有连上了GST的诱饵蛋白）。如果暂时不用，保存在-80℃。；在裂解液上清中加入适量的50% Glutathione Sepharose 4B，4℃轻轻摇动孵育2小时。；4℃，4000rpm离心5min，吸弃上清，此时剩下的就是连上了GST-诱饵蛋白的Sepharose。；加入200ul预冷的PBS，轻轻晃动洗涤珠子，然后4℃，4000rpm离心5min，吸弃上清。重复洗3次。这是为了洗去非特异性结合的蛋白。；目标蛋白可连上His标签进行表达、制备纯化。；Pull-down实验；实验组：结合有GST-诱饵蛋白的珠子里，加入适量His-目标蛋白溶液，4℃，旋转孵育6h。；对照组：结合有GST蛋白的珠子，加入适量His-目标蛋白溶液，4℃，旋转孵育6h。；4℃，4000rpm离心5min，吸弃上清。；贴壁加入500ul 预冷的PBS，轻轻晃动洗涤珠子。4℃，4000rpm离心5min，吸弃上清。重复洗3次。；加入Loading buffer，煮样10min后，进行后续Western检测。',
+    consumables: [
+      { name: 'BL21菌株', brand: '通用', cat: '试剂' },
+      { name: 'IPTG', brand: 'Sigma', cat: '试剂' },
+      { name: 'GST标签融合蛋白', brand: '通用', cat: '试剂' },
+      { name: 'Glutathione琼脂糖', brand: '通用', cat: '耗材' },
+      { name: 'PBS', brand: '迈邦', cat: '试剂' },
+      { name: 'Loading buffer', brand: '通用', cat: '试剂' },
+    ] },
+  { id: 'sc23', title: '石蜡切片HE染色（苏木精-伊红染色）', type: '病理组织', preset: true, raw: '提前准备好待染色的石蜡切片（如果是冰冻切片，基本步骤一样，不用做脱蜡，染色时间短一些即可）。；二甲苯I中10min，然后放入二甲苯II中10min（染色剂为水溶性，水与石蜡不溶，在染色前必须将石蜡脱尽，否则不能染色）。；100%乙醇、95%乙醇、85%乙醇、75%、50%乙醇中各5 min。；自来水冲洗2min。；浸入苏木精染色液中，染色3-5min，用自来水冲洗。染色过程中切勿干片，否则会导致切片收缩、变形，影响组织形态。；然后自来水冲洗2min。；在1%的盐酸酒精分化液中分化3-5s。然后自来水冲洗3min，洗2次。；浸入淡氨水中，3-5min，使细胞蓝化。然后自来水冲洗3min。；浸入伊红染色液中，染色2min（色时间由组织大小和切片厚度还有组织类型决定），自来水冲洗2min。；75%、85%、90%乙醇各脱水1次，95%乙醇脱水2次，100%乙醇脱水3次，每次1min；二甲苯I：1min，然后放入二甲苯II：1min。；在组织中央滴加中性树胶，缓慢放下盖玻片（避免气泡）。',
+    consumables: [
+      { name: '梯度乙醇(50-100%)', brand: 'Solarbio', cat: '试剂' },
+      { name: '二甲苯', brand: 'Sigma', cat: '试剂' },
+      { name: '苏木精染液', brand: '通用', cat: '试剂' },
+      { name: '伊红染液', brand: '通用', cat: '试剂' },
+      { name: '中性树胶', brand: '通用', cat: '耗材' },
+      { name: '载玻片/盖玻片', brand: '通用', cat: '耗材' },
+    ] },
 ];
 
 /* ---------------- 供应商/合作伙伴配置（自然获客入口） ----------------
@@ -158,6 +304,20 @@ function migrateTemplateConsumables() {
     const def = DEFAULT_TEMPLATES.find((d) => d.id === t.id);
     if (def && def.consumables && !t.consumables) { t.consumables = def.consumables; changed = true; }
   });
+  if (changed) save(STORE.templates, tpls);
+}
+/* 预设模板迁移：把平台预设模板（preset:true，爬取自破土狗等公开 protocol）补齐到
+   用户模板库；并为旧模板补上 type 字段，便于按类型分组（仅执行一次） */
+function migratePresetTemplates() {
+  if (localStorage.getItem('bench.tplPreset')) return;
+  localStorage.setItem('bench.tplPreset', '1');
+  const tpls = load(STORE.templates, []);
+  const have = new Set(tpls.map((t) => t.id));
+  let changed = false;
+  DEFAULT_TEMPLATES.forEach((d) => {
+    if (d.preset && !have.has(d.id)) { tpls.push(JSON.parse(JSON.stringify(d))); changed = true; }
+  });
+  tpls.forEach((t) => { if (!t.type) { const d = DEFAULT_TEMPLATES.find((x) => x.id === t.id); t.type = d && d.type ? d.type : '其他'; changed = true; } });
   if (changed) save(STORE.templates, tpls);
 }
 /* 实验记录标签迁移：给内置示例记录补上标签，便于筛选演示（仅执行一次） */
@@ -1939,12 +2099,20 @@ function deleteResult(id) {
 function openTemplates() {
   const tpls = load(STORE.templates, []);
   let html = `<div class="grabber"></div><h2>实验模板</h2>
-    <p class="hint">用常用 protocol 一键新建记录；也可在新建记录时点“存为模板”。</p>`;
+    <p class="hint">用常用 protocol 一键新建记录；也可在新建记录时点“存为模板”。<br>带 <span class="preset-tag">常规</span> 标记为平台预设模板，步骤来自公开 protocol，<b>使用前请自行核对确认</b>。</p>`;
   if (!tpls.length) html += emptyState('还没有模板', '在新建实验记录时点“存为模板”');
   else {
-    tpls.forEach((t) => {
-      html += `<div class="list-row" onclick="useTemplate('${t.id}')"><div class="lr-ico">📋</div>
-        <div class="lr-main"><div class="lr-title">${esc(t.title)}</div><div class="lr-sub">${esc(t.raw.slice(0, 28))}…</div></div><div class="lr-right">用 ›</div></div>`;
+    const order = ['细胞培养', '细胞功能', '细胞转染', '免疫荧光', '蛋白', '分子', 'PCR', '病理组织', '其他'];
+    const groups = {};
+    tpls.forEach((t) => { const k = t.type || '其他'; (groups[k] = groups[k] || []).push(t); });
+    order.concat(Object.keys(groups).filter((k) => !order.includes(k))).forEach((type) => {
+      const list = groups[type]; if (!list || !list.length) return;
+      html += `<div class="tpl-group-title">${esc(type)}</div>`;
+      list.forEach((t) => {
+        const badge = t.preset ? `<span class="preset-tag">常规·需确认</span>` : '';
+        html += `<div class="list-row" onclick="useTemplate('${t.id}')"><div class="lr-ico">📋</div>
+          <div class="lr-main"><div class="lr-title">${esc(t.title)} ${badge}</div><div class="lr-sub">${esc(t.raw.slice(0, 26))}…</div></div><div class="lr-right">用 ›</div></div>`;
+      });
     });
   }
   html += `<button class="btn" style="margin-top:8px" onclick="newTemplate()">+ 新建模板</button>`;
@@ -1979,6 +2147,7 @@ function useTemplate(id) {
   const toks = extractTokens(t.raw);
   let html = `<div class="grabber"></div><h2>套用模板：${esc(t.title)}</h2>
     <p class="hint">填入变量，生成带时间线的实验记录。</p>`;
+  if (t.preset) html += `<p class="warn-preset">⚠ 此为常规实验模板，步骤来源于公开 protocol，请自行确认后使用。</p>`;
   toks.forEach((tk, i) => { html += `<div class="field"><label>${esc(tk)}</label><input id="tv_${i}" placeholder="填入${esc(tk)}"></div>`; });
   html += `<div class="field"><label>标题</label><input id="tfTitle" value="${esc(t.title)}"></div>`;
   html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
@@ -2645,6 +2814,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 ensureTemplateDefaults();
 migrateTemplates();
 migrateTemplateConsumables();
+migratePresetTemplates();
 migrateExperiments();
 maybeOnboard();
 renderAll();

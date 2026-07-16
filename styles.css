@@ -290,6 +290,13 @@ textarea{min-height:96px;resize:vertical}
 .list-row .lr-ico{width:38px;height:38px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;
   background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.6);box-shadow:var(--glass-shadow)}
 .list-row .lr-ico.g{background:var(--green-soft)}.list-row .lr-ico.o{background:var(--orange-soft)}.list-row .lr-ico.r{background:var(--red-soft)}
+/* 模板按类型分组 + 预设免责标记 */
+.tpl-group-title{font-size:12px;font-weight:700;letter-spacing:.3px;color:var(--blue);margin:16px 4px 8px;
+  padding-left:8px;border-left:3px solid var(--blue);opacity:.92}
+.preset-tag{display:inline-block;font-size:10px;font-weight:600;line-height:1;padding:3px 6px;border-radius:6px;
+  vertical-align:middle;color:#9a6b00;background:rgba(255,193,7,.16);border:1px solid rgba(255,193,7,.35);margin-left:6px}
+.warn-preset{font-size:12.5px;line-height:1.5;color:#9a6b00;background:rgba(255,193,7,.12);
+  border:1px solid rgba(255,193,7,.3);border-radius:10px;padding:8px 10px;margin:2px 0 4px}
 
 /* 分段控制 */
 .seg{display:flex;background:rgba(255,255,255,.45);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);

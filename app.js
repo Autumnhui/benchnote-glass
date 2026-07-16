@@ -434,9 +434,9 @@ function reagStatus(r) {
   if (Number(r.qty) <= Number(r.min || 0)) return { key: 'warn', text: '需补货' };
   return { key: 'ok', text: '正常' };
 }
-function toast(msg) {
+function toast(msg, ms) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), ms || 1800);
 }
 
 /* ---------------- 结构化解析（域感知） ---------------- */
@@ -2491,6 +2491,7 @@ async function aiOptimizeWeekly() {
   if (!agnesReady()) { toast('请先在「设置 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
   const btn = $('aiOptWeekly');
   if (btn) { btn.disabled = true; btn.textContent = 'AI 优化中…'; }
+  toast('⏳ AI 正在优化周报，约需 10–40 秒，请勿离开…', 5000);
   try {
     const c = agnesCreds();
     if (!c.key) throw new Error('no key');
@@ -2498,12 +2499,12 @@ async function aiOptimizeWeekly() {
     const headers = { 'Content-Type': 'application/json' };
     headers['Authorization'] = 'Bearer ' + c.key;
     const sys = `你是资深科研工作者的周报 / 组会汇报润色助手。下面是一份由实验记录自动汇总出的周报草稿（偏流水账、条目化，可能带口语或语音转写痕迹）。请将其优化为一份可直接用于周报或组会汇报的素材，要求：\n\n1. 去除 AI 味：禁用「首先/其次/总之」「值得一提的是」「综上所述」「赋能」「抓手」「闭环」「进一步」等套话与空话；不堆砌形容词；用科研一线人员自然、克制的口吻写作。\n2. 工作详实：在草稿事实基础上合理补全技术细节与逻辑（如实验目的、关键参数、结果现象、异常及处理），但不要编造不存在的数据；保留批号、用量、条件等关键信息；按「做了什么—怎么做的—看到什么」组织。\n3. 结构化但不死板：可保留日期/项目分组；每部分用简短小标题或要点；重点工作适当展开，常规工作合并简述。\n4. 心得与收获：文末增加「本周心得 / 收获」小节，结合本周工作提炼 2–4 条真实、具体的体会（如方法改进、踩过的坑、对现象的新理解、下一步想法），避免空泛口号。\n5. 可选：基于本周进展给出 1–3 条具体、可执行的「下周计划」。\n\n重要：只输出纯文本，不要使用任何 Markdown 标记符号（不要用 # 号标题、星号加粗、减号列表、反引号 等），也不要用代码块包裹。用自然段落、空行分隔，以及 1. 2. 3. 这样的纯数字编号即可。不要解释你的修改，若草稿无可整理内容请直接说明。`;
-    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 30000);
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 60000);
     const res = await fetch(base + '/v1/chat/completions', {
       method: 'POST',
       headers: headers,
       signal: ctrl.signal,
-      body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: weeklyRaw }], temperature: 0.5, max_tokens: 4000 })
+      body: JSON.stringify({ model: 'agnes-1.5-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: weeklyRaw }], temperature: 0.5, max_tokens: 4000, stream: false })
     });
     clearTimeout(to);
     if (!res.ok) throw new Error('agnes ' + res.status);
@@ -2513,10 +2514,10 @@ async function aiOptimizeWeekly() {
     if (!content) throw new Error('empty');
     weeklyText = content;
     renderWeeklyOut('AI 已优化', content, true);
-    toast('✅ AI 已优化周报'); if (voiceOn) speak('AI 已优化');
+    toast('✅ AI 已优化周报', 3500); if (voiceOn) speak('AI 已优化');
   } catch (e) {
-    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（网络超时）' : ('AI 优化失败：' + (e.message || e));
-    toast('❌ ' + msg + '，请检查网络或在「设置」重测连通');
+    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（超时，模型较慢或网络不佳）' : ('AI 优化失败：' + (e.message || e));
+    toast('❌ ' + msg + '，请重试或在「设置」重测连通', 4500);
     console.warn('[Agnes] 周报优化失败：', e);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🤖 AI 优化'; }
@@ -2633,12 +2634,12 @@ async function callAgnesParse(raw) {
 }
 
 注意：amount 与 unit 必须成对出现；离心力统一用 ×g、转速用 rpm、温度用 ℃、时间用 min；同一物料多次使用应分别成步；只输出 JSON。`;
-  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 30000);
+  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 60000);
   const res = await fetch(base + '/v1/chat/completions', {
     method: 'POST',
     headers: headers,
     signal: ctrl.signal,
-    body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: raw }], temperature: 0.2, max_tokens: 2000 })
+    body: JSON.stringify({ model: 'agnes-1.5-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: raw }], temperature: 0.2, max_tokens: 2000, stream: false })
   });
   clearTimeout(to);
   if (!res.ok) throw new Error('agnes ' + res.status);
@@ -2673,20 +2674,21 @@ async function aiStructure() {
   if (!agnesReady()) { toast('请先在「设置 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
   const aiBtn = $('aiBtn'); const oldTxt = aiBtn ? aiBtn.textContent : '';
   if (aiBtn) { aiBtn.disabled = true; aiBtn.textContent = 'AI 整理中…'; }
+  toast('⏳ AI 正在整理，约需 10–40 秒，请稍候…', 5000);
   try {
     const data = await callAgnesParse(raw);
     if (data && (data.title || (Array.isArray(data.steps) && data.steps.length))) {
       applyAgnesResult(data);
       const n = Array.isArray(data.steps) ? data.steps.length : 0;
-      toast('✅ AI 已整理' + (n ? '（' + n + ' 个步骤）' : '')); if (voiceOn) speak('AI 已整理');
+      toast('✅ AI 已整理' + (n ? '（' + n + ' 个步骤）' : ''), 3500); if (voiceOn) speak('AI 已整理');
     } else {
       currentSteps = structure(raw); renderSteps();
-      toast('⚠️ AI 未返回有效结构，已用本地整理');
+      toast('⚠️ AI 未返回有效结构，已用本地整理', 3500);
     }
   } catch (e) {
     currentSteps = structure(raw); renderSteps();
-    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（网络超时）' : ('AI 整理失败：' + (e.message || e));
-    toast('❌ ' + msg + '，已用本地整理');
+    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（超时，模型较慢或网络不佳）' : ('AI 整理失败：' + (e.message || e));
+    toast('❌ ' + msg + '，已用本地整理', 4500);
     console.warn('[Agnes] 整理失败：', e);
   } finally {
     if (aiBtn) { aiBtn.disabled = false; aiBtn.textContent = oldTxt || '🤖 AI 智能整理'; }

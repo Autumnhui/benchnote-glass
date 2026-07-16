@@ -302,6 +302,11 @@ function switchView(view) {
   updateTitleScale();
 }
 /* 标题随滚动逐渐收缩：前 90px 内从 30px 缩到 19px，并释放顶部留白 */
+let _titleRaf = 0;
+function onScrollTitle() {
+  if (_titleRaf) return;                       // rAF 节流：每帧最多算一次，避免滚动时频繁重排
+  _titleRaf = requestAnimationFrame(() => { _titleRaf = 0; updateTitleScale(); });
+}
 function updateTitleScale() {
   const h1 = $('viewTitle'), sub = $('viewSub'), inner = document.querySelector('.topbar-inner');
   if (!h1 || !inner) return;
@@ -2524,9 +2529,10 @@ function openModal(html) { $('modal').innerHTML = html; $('modalBackdrop').class
 function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').classList.remove('show'); }
 
 /* ---------------- Apple 流体交互：Sheet 下滑拖拽关闭 ----------------
-   仅从顶部抓手(.grabber)起拖；拖拽中 1:1 跟手、向上橡皮筋不可越顶；
-   释放按「速度接力 + 位移阈值」决定关闭或回弹；settle 用 rAF 半隐式欧拉
-   弹簧，释放途中再次抓住可立即中断（present 值续接），符合可中断原则。
+   从顶部抓手(.grabber)或弹窗空白区均可起拖；先判定手势方向，避免抢走
+   向上滚动；仅在内容滚到顶时的向下拖拽才触发关闭，保护内部滚动。
+   拖拽中 1:1 跟手、向上橡皮筋不可越顶；释放按「速度接力 + 位移阈值」
+   决定关闭或回弹；settle 用 rAF 半隐式欧拉弹簧，途中再抓可中断续接。
 ------------------------------------------------------------------- */
 (function () {
   const sheet = document.getElementById('sheet');
@@ -2534,6 +2540,7 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
   if (!sheet || !bd) return;
   const VH = () => sheet.offsetHeight || Math.round(window.innerHeight * 0.9);
   let drag = null;   // {startY, startTy, lastY, lastT, vy, moved}
+  let pending = null; // 按下但未确定方向的意图（用于区分滚动与下拉关闭）
   let raf = 0;
 
   function rubberband(o, dim, constant) { constant = constant || 0.55; return (o * dim * constant) / (dim + constant * Math.abs(o)); }
@@ -2544,15 +2551,28 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
   }
   function onDown(e) {
     if (!sheet.classList.contains('show')) return;
-    if (!e.target.closest('.grabber')) return;
-    cancelAnimationFrame(raf);
-    e.preventDefault();
-    try { sheet.setPointerCapture(e.pointerId); } catch (_) {}
-    sheet.style.transition = 'none'; bd.style.transition = 'none';
-    drag = { startY: e.clientY, startTy: curTy(), lastY: e.clientY, lastT: performance.now(), vy: 0, moved: false };
+    const t = e.target;
+    // 交互控件与内部滚动区：不触发拖拽，交给原生处理
+    if (t.closest('input, textarea, select, button, a, label, [contenteditable], .copy-box, .report-box, .batch-preview, .tbl, .expcal')) return;
+    pending = { x: e.clientX, y: e.clientY, id: e.pointerId };
   }
   function onMove(e) {
-    if (!drag) return;
+    if (drag) { applyDrag(e); return; }
+    if (!pending) return;
+    const dy = e.clientY - pending.y, dx = Math.abs(e.clientX - pending.x);
+    // 非向下滑动（向上/横向）→ 可能是滚动，放弃拖拽意图，交给原生
+    if (dy <= 6 || dx > Math.abs(dy)) { if (dy < -6 || dx > 6) pending = null; return; }
+    // 内容已滚动则交给原生滚动，不抢手势
+    if (sheet.scrollTop > 0) { pending = null; return; }
+    // 确认：从顶部向下拖拽 → 启动关闭手势（抓手或空白区均可）
+    cancelAnimationFrame(raf);
+    try { sheet.setPointerCapture(pending.id); } catch (_) {}
+    sheet.style.transition = 'none'; bd.style.transition = 'none';
+    drag = { startY: pending.y, startTy: curTy(), lastY: pending.y, lastT: performance.now(), vy: 0, moved: false };
+    pending = null;
+    applyDrag(e);
+  }
+  function applyDrag(e) {
     const dy = e.clientY - drag.startY;
     if (Math.abs(dy) > 4) drag.moved = true;
     const h = VH();
@@ -2564,7 +2584,7 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
     if (dt > 0) { drag.vy = (e.clientY - drag.lastY) / dt * 1000; drag.lastY = e.clientY; drag.lastT = now; }
   }
   function onUp() {
-    if (!drag) return;
+    if (!drag) { pending = null; return; }
     const h = VH(), ty = curTy(), vy = drag.vy;
     drag = null;
     const dismiss = (vy > 550 && ty > 0) || ty > h * 0.42;  // 快速下甩 或 拖过 42% → 关闭
@@ -2603,7 +2623,7 @@ $('fab').addEventListener('click', () => {
 });
 $('sheetBackdrop').addEventListener('click', closeSheet);
 $('modalBackdrop').addEventListener('click', closeModal);
-window.addEventListener('scroll', updateTitleScale, { passive: true });
+window.addEventListener('scroll', onScrollTitle, { passive: true });
 
 /* ---------------- 启动 ---------------- */
 seed();

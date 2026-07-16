@@ -8,7 +8,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const STORE = {
-  exp: 'bench.exp', reag: 'bench.reag', samples: 'bench.samples',
+  exp: 'bench.exp', reag: 'bench.reag', samples: 'bench.samples', boxes: 'bench.boxes',
   templates: 'bench.templates', instruments: 'bench.instruments',
   incidents: 'bench.incidents', results: 'bench.results', todos: 'bench.todos',
   safety: 'bench.safety',
@@ -156,6 +156,9 @@ let reagSeg = 'reag';
 let reagFilter = 'all';
 let reagSearch = '';
 let freezerBox = 'B1';
+let freezerSearch = '';
+let freezerMulti = false;
+let freezerSel = new Set();
 let editingExpId = null;
 let editingReagId = null;
 let currentSteps = [];
@@ -385,7 +388,7 @@ function renderReagents() {
     html += `<div class="chip ${reagFilter === k ? 'active' : ''}" onclick="setReagFilter('${k}')">${l}</div>`;
   });
   html += '</div>';
-  html += `<button class="btn secondary" style="margin-top:6px;width:100%" onclick="openReagBatch()">📥 批量导入试剂</button>`;
+  html += `<button class="btn secondary" style="margin:6px 0 12px;width:100%" onclick="openReagBatch()">📥 批量导入试剂</button>`;
   if (!list.length) html += emptyState('没有符合条件的试剂', '调整筛选或点 + 添加');
   else {
     list.forEach((r) => {
@@ -402,7 +405,7 @@ function renderReagents() {
 }
 function setReagSeg(s) { reagSeg = s; renderReagents(); setHeader(); }
 function setReagFilter(f) { reagFilter = f; renderReagents(); }
-function onReagSearch(v) { reagSearch = v; renderReagents(); }
+function onReagSearch(v) { reagSearch = v; renderReagents(); const inp = $('reagSearch'); if (inp) { inp.focus(); const len = inp.value.length; inp.setSelectionRange(len, len); } }
 function renderExpiryCalendar() {
   const reags = load(STORE.reag, []);
   let html = `<div class="seg">
@@ -459,9 +462,17 @@ function renderExpiryCalendar() {
   $('view-reagents').innerHTML = html;
 }
 
+function getBoxes() {
+  let boxes = load(STORE.boxes, null);
+  const fromSamples = [...new Set(load(STORE.samples, []).map((s) => s.box))];
+  if (!boxes || !boxes.length) { boxes = fromSamples.length ? fromSamples : ['B1']; save(STORE.boxes, boxes); }
+  fromSamples.forEach((b) => { if (!boxes.includes(b)) boxes.push(b); });
+  return boxes;
+}
+
 function renderFreezer() {
   const samples = load(STORE.samples, []);
-  const boxes = [...new Set(samples.map((s) => s.box))];
+  const boxes = getBoxes();
   if (!boxes.includes(freezerBox)) freezerBox = boxes[0] || 'B1';
   let html = `<div class="seg">
     <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
@@ -469,12 +480,29 @@ function renderFreezer() {
     <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
   html += '<div class="chips">';
-  boxes.forEach((b) => { html += `<div class="chip ${freezerBox === b ? 'active' : ''}" onclick="setFreezerBox('${b}')">${b}</div>`; });
+  boxes.forEach((b, i) => { html += `<div class="chip ${freezerBox === b ? 'active' : ''}" onclick="setFreezerBoxByIndex(${i})">${esc(b)}</div>`; });
+  html += `<div class="chip add" onclick="addFreezerBox()">＋</div>`;
+  html += `<div class="chip more" onclick="openBoxManager()">⋯</div>`;
   html += '</div>';
-  html += `<button class="btn secondary" style="margin-top:6px;width:100%" onclick="openFreezerBatch()">📥 批量填充本盒</button>`;
+  html += `<input class="search" id="freezerSearch" placeholder="搜索本盒样本 · 高亮匹配格子" value="${esc(freezerSearch)}" oninput="onFreezerSearch(this.value)">`;
+  html += `<div class="freezer-actions">
+    <button class="btn secondary mini" onclick="openFreezerBatch()">📥 批量填充</button>
+    <button class="btn secondary mini ${freezerMulti ? 'on' : ''}" onclick="toggleFreezerMulti()">${freezerMulti ? '✓ 多选开' : '☑️ 多选'}</button>
+  </div>`;
+  if (freezerMulti) {
+    html += `<div class="fm-toolbar">
+      <span class="fm-count" id="fmCount">已选 ${freezerSel.size} 份</span>
+      <div class="fm-btns">
+        <button class="mini-btn" onclick="fmSelectAll()">全选本盒</button>
+        <button class="mini-btn" onclick="fmClearSel()">清空</button>
+        <button class="mini-btn danger" onclick="fmDeleteSel()">删除</button>
+        <button class="mini-btn" onclick="fmMoveSel()">移动到…</button>
+      </div></div>`;
+  }
   const here = samples.filter((s) => s.box === freezerBox);
   const inBox = {};
   here.forEach((s) => { inBox[s.row + s.col] = s; });
+  const term = freezerSearch.trim().toLowerCase();
   const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   html += '<div class="freezer">';
   html += '<div class="colhead"></div>';
@@ -483,15 +511,203 @@ function renderFreezer() {
     html += `<div class="colhead">${r}</div>`;
     for (let c = 1; c <= 12; c++) {
       const s = inBox[r + c];
-      if (s) html += `<div class="cell filled" onclick="openSampleSheet('${s.id}')" title="${esc(s.name)}">${c}</div>`;
-      else html += `<div class="cell" onclick="openSampleSheet(null,'${r}',${c})"></div>`;
+      if (s) {
+        const match = term && (s.name + ' ' + s.type + ' ' + s.note + ' ' + s.box).toLowerCase().includes(term);
+        const sel = freezerMulti && freezerSel.has(s.id);
+        const cls = `cell filled${match ? ' hl' : ''}${sel ? ' sel' : ''}`;
+        const ds = `data-id="${s.id}" data-name="${esc(s.name)}" data-type="${esc(s.type)}" data-note="${esc(s.note)}" data-box="${esc(s.box)}" data-col="${c}"`;
+        if (freezerMulti) html += `<div class="${cls}" ${ds} onclick="toggleFreezerCell('${s.id}')" title="${esc(s.name)}">${sel ? '✓' : c}</div>`;
+        else html += `<div class="${cls}" ${ds} onclick="openSampleSheet('${s.id}')" title="${esc(s.name)}">${c}</div>`;
+      } else {
+        if (freezerMulti) html += `<div class="cell"></div>`;
+        else html += `<div class="cell" onclick="openSampleSheet(null,'${r}',${c})"></div>`;
+      }
     }
   });
   html += '</div>';
-  html += `<div class="meta" style="margin-top:10px">点击空格新增样本，点击蓝格查看。本盒 ${here.length} / 96 份。</div>`;
+  html += `<div class="meta" style="margin-top:10px">点击${freezerMulti ? '格子可勾选 / 取消选中' : '空格新增样本，点击蓝格查看'}。本盒 ${here.length} / 96 份。</div>`;
   $('view-reagents').innerHTML = html;
 }
-function setFreezerBox(b) { freezerBox = b; renderFreezer(); }
+function setFreezerBox(b) { freezerBox = b; freezerSel.clear(); renderFreezer(); }
+function setFreezerBoxByIndex(i) { const b = getBoxes()[i]; if (b) { freezerBox = b; freezerSel.clear(); renderFreezer(); } }
+
+/* 冻存库搜索高亮（仅切换 class，不重渲染以保留输入焦点） */
+function onFreezerSearch(v) {
+  freezerSearch = v;
+  const term = v.trim().toLowerCase();
+  document.querySelectorAll('#view-reagents .freezer .cell.filled').forEach((el) => {
+    const hay = (el.dataset.name + ' ' + el.dataset.type + ' ' + el.dataset.note + ' ' + el.dataset.box).toLowerCase();
+    el.classList.toggle('hl', !!term && hay.includes(term));
+  });
+}
+
+/* 冻存库多选 / 批量操作 */
+function toggleFreezerMulti() { freezerMulti = !freezerMulti; if (!freezerMulti) freezerSel.clear(); renderFreezer(); }
+function toggleFreezerCell(id) {
+  if (freezerSel.has(id)) freezerSel.delete(id); else freezerSel.add(id);
+  const el = document.querySelector(`#view-reagents .freezer .cell[data-id="${id}"]`);
+  if (el) { const on = freezerSel.has(id); el.classList.toggle('sel', on); el.textContent = on ? '✓' : el.dataset.col; }
+  const cnt = document.getElementById('fmCount'); if (cnt) cnt.textContent = '已选 ' + freezerSel.size + ' 份';
+}
+function fmSelectAll() { load(STORE.samples, []).filter((s) => s.box === freezerBox).forEach((s) => freezerSel.add(s.id)); renderFreezer(); }
+function fmClearSel() { freezerSel.clear(); renderFreezer(); }
+function fmDeleteSel() {
+  if (!freezerSel.size) { toast('未选中任何样本'); return; }
+  const n = freezerSel.size;
+  if (!confirm(`删除选中的 ${n} 份样本？此操作不可撤销。`)) return;
+  const samples = load(STORE.samples, []).filter((s) => !freezerSel.has(s.id));
+  save(STORE.samples, samples); freezerSel.clear(); renderFreezer(); toast('已删除 ' + n + ' 份');
+}
+function fmMoveSel() { if (!freezerSel.size) { toast('未选中任何样本'); return; } openFreezerMove(); }
+
+/* 冻存盒管理：新建 / 重命名 / 删除 */
+function addFreezerBox() {
+  const boxes = getBoxes();
+  let i = 1; while (boxes.includes('B' + i)) i++;
+  const def = 'B' + i;
+  let html = `<div class="grabber"></div><h2>新建冻存盒</h2>
+    <p class="hint">给新盒子起个名字，如 ${def}、液氮罐1。</p>
+    <div class="field"><label>盒子名称</label><input id="nbName" value="${def}" placeholder="如 B2"></div>
+    <div class="btn-row" style="margin-top:6px">
+      <button class="btn ghost" onclick="closeSheet()">取消</button>
+      <button class="btn" onclick="confirmAddBox()">创建</button>
+    </div>`;
+  openSheet(html);
+}
+function confirmAddBox() {
+  const name = ($('nbName').value || '').trim();
+  if (!name) { toast('请输入盒子名称'); return; }
+  const boxes = getBoxes();
+  if (boxes.includes(name)) { toast('已存在同名盒子'); return; }
+  boxes.push(name); save(STORE.boxes, boxes);
+  freezerBox = name; freezerSel.clear(); freezerMulti = false;
+  closeSheet(); renderFreezer(); toast('已创建盒子 ' + name);
+}
+let _renameOld = '';
+function openBoxManager() {
+  const boxes = getBoxes();
+  const samples = load(STORE.samples, []);
+  let rows = boxes.map((b, i) => {
+    const cnt = samples.filter((s) => s.box === b).length;
+    return `<div class="list-row">
+      <div class="lr-main"><div class="lr-title">${esc(b)}</div><div class="lr-sub">${cnt} 份样本</div></div>
+      <div class="lr-right" style="display:flex;gap:8px">
+        <button class="mini-btn" onclick="renameBoxByIndex(${i})">重命名</button>
+        <button class="mini-btn danger" onclick="deleteBoxByIndex(${i})">删除</button>
+      </div></div>`;
+  }).join('');
+  let html = `<div class="grabber"></div><h2>管理冻存盒</h2>
+    <p class="hint">共 ${boxes.length} 个盒子。</p>
+    <div class="list">${rows}</div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn ghost" onclick="addFreezerBox()">＋ 新建</button>
+      <button class="btn" onclick="closeSheet()">完成</button>
+    </div>`;
+  openSheet(html);
+}
+function renameBoxByIndex(i) { renameBox(getBoxes()[i]); }
+function deleteBoxByIndex(i) { deleteBox(getBoxes()[i]); }
+function renameBox(old) {
+  _renameOld = old;
+  let html = `<div class="grabber"></div><h2>重命名盒子</h2>
+    <p class="hint">当前：${esc(old)}</p>
+    <div class="field"><label>新名称</label><input id="rbNew" value="${esc(old)}" placeholder="如 B2"></div>
+    <div class="btn-row" style="margin-top:6px">
+      <button class="btn ghost" onclick="openBoxManager()">取消</button>
+      <button class="btn" onclick="confirmRenameBox()">保存</button>
+    </div>`;
+  openSheet(html);
+}
+function confirmRenameBox() {
+  const old = _renameOld;
+  const name = ($('rbNew').value || '').trim();
+  if (!name) { toast('请输入名称'); return; }
+  const boxes = getBoxes();
+  if (boxes.includes(name) && name !== old) { toast('已存在同名盒子'); return; }
+  const i = boxes.indexOf(old); if (i >= 0) boxes[i] = name; save(STORE.boxes, boxes);
+  const samples = load(STORE.samples, []);
+  samples.forEach((s) => { if (s.box === old) s.box = name; }); save(STORE.samples, samples);
+  if (freezerBox === old) freezerBox = name;
+  openBoxManager();
+}
+function deleteBox(name) {
+  const boxes = getBoxes();
+  if (boxes.length <= 1) { toast('至少保留一个盒子'); return; }
+  const cnt = load(STORE.samples, []).filter((s) => s.box === name).length;
+  if (!confirm(`删除盒子「${name}」及其 ${cnt} 份样本？此操作不可撤销。`)) return;
+  const samples = load(STORE.samples, []).filter((s) => s.box !== name); save(STORE.samples, samples);
+  const nb = getBoxes().filter((b) => b !== name); save(STORE.boxes, nb);
+  if (freezerBox === name) freezerBox = nb[0];
+  freezerSel.clear(); closeSheet(); renderFreezer(); toast('已删除盒子 ' + name);
+}
+
+/* 选中样本移动到其他盒子 */
+function openFreezerMove() {
+  const boxes = getBoxes();
+  const boxOpts = boxes.map((b) => `<option ${b === freezerBox ? 'selected' : ''}>${esc(b)}</option>`).join('');
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const rowOpts = rows.map((r) => `<option ${r === 'A' ? 'selected' : ''}>${r}</option>`).join('');
+  let colOpts = ''; for (let c = 1; c <= 12; c++) colOpts += `<option ${c === 1 ? 'selected' : ''}>${c}</option>`;
+  const n = freezerSel.size;
+  let html = `<div class="grabber"></div><h2>移动 ${n} 份样本</h2>
+    <p class="hint">将选中的样本按顺序移动到目标盒子，已占用格自动跳过，保留原有信息。</p>
+    <div class="field"><label>目标盒子</label><select id="fmBox" class="sel">${boxOpts}</select></div>
+    <div class="field"><label>起始位置 / 方向</label><div style="display:flex;gap:10px">
+      <select id="fmRow" class="sel">${rowOpts}</select>
+      <select id="fmCol" class="sel">${colOpts}</select>
+      <select id="fmDir" class="sel"><option value="row" selected>行优先</option><option value="col">列优先</option></select>
+    </div></div>
+    <div id="fmPreview" class="batch-preview"></div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn ghost" onclick="closeSheet()">取消</button>
+      <button class="btn" id="fmConfirm" onclick="confirmFreezerMove()">移动</button>
+    </div>`;
+  openSheet(html);
+  ['fmBox', 'fmRow', 'fmCol', 'fmDir'].forEach((id) => { const e = $(id); if (e) e.addEventListener('change', renderFreezerMovePreview); });
+  renderFreezerMovePreview();
+}
+function selSamplesOrdered() {
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  return load(STORE.samples, []).filter((s) => freezerSel.has(s.id))
+    .sort((a, b) => rows.indexOf(a.row) - rows.indexOf(b.row) || a.col - b.col);
+}
+function renderFreezerMovePreview() {
+  const box = $('fmPreview'); if (!box) return;
+  const target = $('fmBox').value;
+  const ordered = selSamplesOrdered();
+  if (!ordered.length) { box.innerHTML = '<div class="bp-row muted">未选中样本</div>'; return; }
+  const order = freezerOrder($('fmRow').value, +$('fmCol').value, $('fmDir').value, ordered.length);
+  const occupied = load(STORE.samples, []).filter((s) => s.box === target && !freezerSel.has(s.id)).map((s) => s.row + s.col);
+  let moved = 0;
+  const cells = ordered.map((s, i) => {
+    const c = order[i]; if (!c) return `<span class="bp-skip">${esc(s.name)}（超出范围）</span>`;
+    const key = c.row + c.col;
+    if (occupied.includes(key)) return `<span class="bp-skip">${esc(s.name)}→${c.row}${c.col}(占用)</span>`;
+    moved++; return `<span class="bp-ok">${esc(s.name)}→${c.row}${c.col}</span>`;
+  });
+  box.innerHTML = `<div class="bp-count">将移动 ${moved} 份（跳过 ${ordered.length - moved} 个）</div>` + cells.map((c) => `<div class="bp-row">${c}</div>`).join('');
+  const cf = $('fmConfirm'); if (cf) cf.textContent = '移动 ' + moved + ' 份';
+}
+function confirmFreezerMove() {
+  const target = $('fmBox').value;
+  const ordered = selSamplesOrdered();
+  if (!ordered.length) { toast('未选中样本'); return; }
+  const order = freezerOrder($('fmRow').value, +$('fmCol').value, $('fmDir').value, ordered.length);
+  const samples = load(STORE.samples, []);
+  const occupied = samples.filter((s) => s.box === target && !freezerSel.has(s.id)).map((s) => s.row + s.col);
+  let moved = 0;
+  ordered.forEach((s, i) => {
+    const c = order[i]; if (!c) return;
+    const key = c.row + c.col; if (occupied.includes(key)) return;
+    const t = samples.find((x) => x.id === s.id);
+    if (t) { t.box = target; t.row = c.row; t.col = c.col; }
+    occupied.push(key); moved++;
+  });
+  save(STORE.samples, samples);
+  freezerSel.clear(); freezerMulti = false;
+  if (!getBoxes().includes(freezerBox)) freezerBox = target;
+  closeSheet(); renderFreezer(); toast('已移动 ' + moved + ' 份到 ' + target);
+}
 
 /* ---------------- 工具箱 ---------------- */
 function renderTools() {

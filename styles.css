@@ -500,6 +500,7 @@ textarea{min-height:96px;resize:vertical}
 .batch-preview{margin-top:12px;background:rgba(255,255,255,.42);border-radius:14px;padding:10px 12px;max-height:190px;overflow:auto}
 .bp-count{font-size:13px;font-weight:600;color:var(--accent-2);margin-bottom:6px}
 .bp-row{font-size:12.5px;color:var(--ink);padding:3px 0;line-height:1.5}
+.bp-row.ok{color:var(--green);font-weight:600}
 .bp-row.muted{color:var(--muted)}
 .bp-ok{color:var(--green)}
 .bp-skip{color:var(--orange)}

@@ -661,7 +661,7 @@ function renderReagents() {
     html += `<div class="chip ${reagFilter === k ? 'active' : ''}" onclick="setReagFilter('${k}')">${l}</div>`;
   });
   html += '</div>';
-  html += `<button class="btn secondary" style="margin:6px 0 12px;width:100%" onclick="openReagBatch()">📥 批量导入试剂</button>`;
+  html += `<button class="btn secondary" style="margin:6px 0 12px;width:100%" onclick="openReagBatch()">📥 批量导入试剂耗材</button>`;
   if (!list.length) html += emptyState('没有符合条件的试剂', '调整筛选或点 + 添加');
   else {
     list.forEach((r) => {
@@ -1495,11 +1495,19 @@ function deleteReag() {
   save(STORE.reag, reags); closeSheet(); renderAll(); toast('已删除');
 }
 
-/* ---------------- 试剂批量导入 ---------------- */
+/* ---------------- 试剂批量导入（文本 + Excel） ---------------- */
+const REAG_TPL_COLS = ['名称', '批号', '数量', '单位', '位置', '效期(YYYY-MM-DD)'];
+let reagExcelRows = [];
 function openReagBatch() {
-  let html = `<div class="grabber"></div><h2>批量导入试剂</h2>
-    <p class="hint">每行一个试剂，字段用 <b>逗号 / 制表符 / 空格</b> 分隔：<br>名称, 批号, 数量, 单位, 位置, 效期(YYYY-MM-DD)<br>例：胰酶, TR0712, 5, 瓶, 4℃柜A, 2026-09-01</p>
-    <textarea id="rbText" class="batch-ta" placeholder="粘贴多行试剂…"></textarea>
+  reagExcelRows = [];
+  let html = `<div class="grabber"></div><h2>批量导入试剂耗材</h2>
+    <p class="hint">两种方式：① 粘贴多行文本（字段用 <b>逗号 / 制表符</b> 分隔：名称, 批号, 数量, 单位, 位置, 效期）；② 下载 Excel 模板填写后导入。</p>
+    <div class="btn-row" style="margin:4px 0 10px">
+      <button class="btn ghost" onclick="downloadReagTemplate()">⬇️ 下载 Excel 模板</button>
+      <button class="btn ghost" onclick="document.getElementById('rbFile').click()">📂 导入 Excel</button>
+      <input type="file" id="rbFile" accept=".xlsx,.xls" style="display:none" onchange="onReagExcelFile(this)">
+    </div>
+    <textarea id="rbText" class="batch-ta" placeholder="粘贴多行试剂（可选，与 Excel 可同时导入）…"></textarea>
     <div id="rbPreview" class="batch-preview"></div>
     <div class="btn-row" style="margin-top:10px">
       <button class="btn ghost" onclick="closeSheet()">取消</button>
@@ -1508,6 +1516,86 @@ function openReagBatch() {
   openSheet(html);
   const ta = $('rbText'); if (ta) ta.addEventListener('input', renderReagBatchPreview);
   renderReagBatchPreview();
+}
+function downloadReagTemplate() {
+  if (typeof XLSX === 'undefined') { toast('Excel 组件未加载，请刷新页面后重试'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([REAG_TPL_COLS]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '试剂耗材');
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '试剂耗材导入模板.xlsx';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('✅ 模板已下载：试剂耗材导入模板.xlsx');
+}
+function onReagExcelFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  if (typeof XLSX === 'undefined') { toast('Excel 组件未加载，请刷新页面后重试'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+      const parsed = mapReagExcelRows(rows);
+      reagExcelRows = parsed;
+      renderReagBatchPreview();
+      if (parsed.length) toast('✅ 已解析 ' + parsed.length + ' 条（可在下方确认后导入）');
+      else toast('⚠️ 未从 Excel 解析到有效行（请确认首行含「名称」表头）');
+    } catch (err) {
+      console.warn('[Excel] 解析失败', err);
+      toast('❌ Excel 解析失败：' + (err.message || err));
+    }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(f);
+}
+function mapReagExcelRows(rows) {
+  if (!rows || !rows.length) return [];
+  // 定位表头行（首格含「名称」），按列名映射，兼容任意列顺序
+  let hi = -1;
+  const idx = {};
+  for (let i = 0; i < rows.length; i++) {
+    const s = (rows[i] || []).map((c) => String(c == null ? '' : c).trim());
+    const namePos = s.findIndex((c) => c === '名称' || c.includes('名称'));
+    if (namePos >= 0) {
+      hi = i;
+      idx.name = namePos;
+      idx.lot = s.findIndex((c) => c.includes('批号'));
+      idx.qty = s.findIndex((c) => c.includes('数量'));
+      idx.unit = s.findIndex((c) => c.includes('单位'));
+      idx.location = s.findIndex((c) => c.includes('位置'));
+      idx.expiry = s.findIndex((c) => c.includes('效期'));
+      break;
+    }
+  }
+  if (hi < 0) { // 无表头：按默认顺序假设
+    Object.assign(idx, { name: 0, lot: 1, qty: 2, unit: 3, location: 4, expiry: 5 });
+    hi = -1;
+  }
+  const out = [];
+  for (let i = hi + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const name = String(r[idx.name] == null ? '' : r[idx.name]).trim();
+    if (!name) continue;
+    let qty = r[idx.qty];
+    if (qty === '' || qty == null) qty = 1;
+    else if (typeof qty === 'string') { const n = parseFloat(qty); if (!isNaN(n)) qty = n; }
+    out.push({
+      name,
+      lot: String(r[idx.lot] == null ? '' : r[idx.lot]).trim(),
+      qty,
+      unit: (String(r[idx.unit] == null ? '' : r[idx.unit]).trim()) || '瓶',
+      location: String(r[idx.location] == null ? '' : r[idx.location]).trim(),
+      expiry: String(r[idx.expiry] == null ? '' : r[idx.expiry]).trim(),
+      min: 0, supplier: ''
+    });
+  }
+  return out;
 }
 function parseReagLines(text) {
   const out = [];
@@ -1522,23 +1610,27 @@ function parseReagLines(text) {
 }
 function renderReagBatchPreview() {
   const box = $('rbPreview'); if (!box) return;
-  const arr = parseReagLines($('rbText').value);
-  box.innerHTML = arr.length
-    ? `<div class="bp-count">将导入 ${arr.length} 条</div>` + arr.slice(0, 6).map((r) => `<div class="bp-row">${esc(r.name)} · ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 6 ? `<div class="bp-row muted">…共 ${arr.length} 条</div>` : '')
-    : '<div class="bp-row muted">尚未解析到试剂</div>';
-  const c = $('rbConfirm'); if (c) c.textContent = '导入 ' + arr.length + ' 条';
+  const arr = parseReagLines(($('rbText') || {}).value || '');
+  const total = arr.length + reagExcelRows.length;
+  let inner = '';
+  if (reagExcelRows.length) inner += `<div class="bp-row ok">📊 Excel：${reagExcelRows.length} 条</div>`;
+  if (arr.length) inner += arr.slice(0, 5).map((r) => `<div class="bp-row">${esc(r.name)} · ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 5 ? `<div class="bp-row muted">…文本共 ${arr.length} 条</div>` : '');
+  if (!total) inner = '<div class="bp-row muted">尚未解析到试剂（可粘贴文本或导入 Excel）</div>';
+  box.innerHTML = inner;
+  const c = $('rbConfirm'); if (c) c.textContent = '导入 ' + total + ' 条';
 }
 function confirmReagBatch() {
-  const arr = parseReagLines($('rbText').value);
-  if (!arr.length) { toast('没有可导入的试剂'); return; }
+  const arr = parseReagLines(($('rbText') || {}).value || '');
+  const all = arr.concat(reagExcelRows);
+  if (!all.length) { toast('没有可导入的试剂'); return; }
   const reags = load(STORE.reag, []);
   let added = 0, updated = 0;
-  arr.forEach((r) => {
+  all.forEach((r) => {
     const i = reags.findIndex((x) => x.name === r.name && x.lot === r.lot);
     if (i >= 0) { reags[i] = { ...reags[i], ...r }; updated++; }
     else { reags.push({ id: uid('r'), ...r }); added++; }
   });
-  save(STORE.reag, reags); closeSheet(); renderAll();
+  save(STORE.reag, reags); closeSheet(); renderAll(); reagExcelRows = [];
   toast(`新增 ${added} · 更新 ${updated}`);
 }
 

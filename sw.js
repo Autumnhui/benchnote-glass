@@ -1,9 +1,10 @@
-const CACHE = 'bench-v2';
+const CACHE = 'bench-v3';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './xlsx.full.min.js',
   './manifest.webmanifest',
   './icon.svg'
 ];

@@ -299,6 +299,19 @@ function switchView(view) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
   renderAll();
   if (window.scrollTo) window.scrollTo(0, 0);
+  updateTitleScale();
+}
+/* 标题随滚动逐渐收缩：前 90px 内从 30px 缩到 19px，并释放顶部留白 */
+function updateTitleScale() {
+  const h1 = $('viewTitle'), sub = $('viewSub'), inner = document.querySelector('.topbar-inner');
+  if (!h1 || !inner) return;
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  const f = Math.min(Math.max(y / 90, 0), 1);
+  h1.style.fontSize = (30 - 11 * f).toFixed(1) + 'px';
+  h1.style.lineHeight = (1.15 - 0.18 * f).toFixed(2);
+  inner.style.paddingTop = (14 - 5 * f).toFixed(1) + 'px';
+  inner.style.paddingBottom = (11 - 4 * f).toFixed(1) + 'px';
+  if (sub) { sub.style.opacity = (1 - 0.65 * f).toFixed(2); sub.style.fontSize = (13 - 2.5 * f).toFixed(1) + 'px'; }
 }
 function renderAll() {
   if (currentView === 'overview') renderOverview();
@@ -842,28 +855,33 @@ function renderMore() {
   const xfOk = iflytekReady();
   const agnesOk = agnesReady();
   let html = '<div class="section-title">API 与密钥</div>';
-  html += `<div class="card">
-    <div class="row1"><h3>讯飞语音听写</h3><span class="tag ${xfOk ? 'ok' : 'bad'}">${xfOk ? '已配置' : '未配置'}</span></div>
-    <div class="kg-step"><span class="kg-num">1</span><div>
-      <div class="kg-t">获取讯飞凭证</div>
-      <div class="kg-d">① 打开 <a href="https://www.xfyun.cn/" target="_blank" rel="noopener">xfyun.cn</a> 注册并登录；② 控制台 → 创建应用，服务勾选「语音听写 iat」；③ 在应用详情复制下方三项并粘贴保存。</div>
-    </div></div>
-    <div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="留空=使用内置代理（推荐）"></div>
-    <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置代理（推荐）'}"></div>
-    <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置代理（推荐）'}"></div>
-    <button class="btn secondary" onclick="saveXfKey()">保存讯飞配置</button>
-    <div class="help">留空即使用内置代理（由 Cloudflare Worker 转发签名，密钥不暴露在前端）；想用自己的账号请粘贴上方三项再保存。</div>
-  </div>`;
-  html += `<div class="card" style="margin-top:12px">
-    <div class="row1"><h3>AI 智能整理</h3><span class="tag ${agnesOk ? 'ok' : 'bad'}">${agnesOk ? '已配置' : '未配置'}</span></div>
-    <div class="kg-step"><span class="kg-num">2</span><div>
-      <div class="kg-t">获取 Agnes Key</div>
-      <div class="kg-d">留空即可使用内置代理（由 Cloudflare Worker 转发，无需 Key，Key 不暴露在前端）；也可粘贴自己的 Agnes Key 直连 <a href="https://agnes-ai.com/" target="_blank" rel="noopener">agnes-ai.com</a>。</div>
-    </div></div>
-    <div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=使用内置代理（推荐）'}"></div>
-    <button class="btn secondary" onclick="saveAgnesKey()">保存 Agnes 配置</button>
-    <div class="help">未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方 Key 再保存。</div>
-  </div>`;
+  html += '<p class="hint" style="margin:0 0 8px">建议自行配置；多人共用内置代理会偏慢，填入下方自有凭证即可提速。</p>';
+  const apiRows = [
+    { id: 'xf', title: '语音听写', ok: xfOk, step: '获取讯飞凭证',
+      stepD: '① 打开 xfyun.cn 注册登录；② 控制台创建应用，服务勾选「语音听写 iat」；③ 复制下方三项并粘贴保存。',
+      fields: `<div class="field"><label>APPID</label><input id="xfAppid" type="text" value="${st.xfAppid ? esc(st.xfAppid) : ''}" placeholder="留空=使用内置代理（推荐）"></div>
+        <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置代理（推荐）'}"></div>
+        <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置代理（推荐）'}"></div>`,
+      save: '<button class="btn secondary" onclick="saveXfKey()">保存讯飞配置</button>',
+      help: '留空即使用内置代理（由 Cloudflare Worker 转发签名，密钥不暴露在前端）；想用自己的账号请粘贴上方三项再保存。' },
+    { id: 'agnes', title: 'AI 整理', ok: agnesOk, step: '获取 Agnes Key',
+      stepD: '留空即可使用内置代理（由 Cloudflare Worker 转发，无需 Key）；也可粘贴自己的 Agnes Key 直连 agnes-ai.com。',
+      fields: `<div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=使用内置代理（推荐）'}"></div>`,
+      save: '<button class="btn secondary" onclick="saveAgnesKey()">保存 Agnes 配置</button>',
+      help: '未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方 Key 再保存。' }
+  ];
+  apiRows.forEach((r) => {
+    html += `<div class="api-row" onclick="toggleApi('${r.id}')">
+      <div class="api-row-main"><span class="api-row-title">${r.title}</span><span class="tag ${r.ok ? 'ok' : 'bad'}">${r.ok ? '已配置' : '未配置'}</span></div>
+      <span class="api-caret" id="caret-${r.id}">⌄</span>
+    </div>
+    <div class="api-detail" id="api-${r.id}" style="display:none">
+      <div class="kg-step"><span class="kg-num">·</span><div><div class="kg-t">${r.step}</div><div class="kg-d">${r.stepD}</div></div></div>
+      ${r.fields}
+      ${r.save}
+      <div class="help">${r.help}</div>
+    </div>`;
+  });
   html += '<div class="section-title">数据备份</div>';
   html += `<button class="btn" onclick="exportData()">📤 导出全部数据</button>
     <button class="btn secondary" style="margin-top:10px" onclick="pickImport()">📥 导入数据</button>
@@ -872,7 +890,6 @@ function renderMore() {
   html += '<div class="section-title">帮助</div>';
   html += `<div class="list-row" onclick="openOnboarding()"><div class="lr-ico">👋</div><div class="lr-main"><div class="lr-title">功能引导</div><div class="lr-sub">重新查看功能介绍与密钥配置提示</div></div><div class="lr-right">›</div></div>`;
   html += '<div class="section-title">供应合作</div>';
-  html += '<p class="hint" style="margin:0 0 10px">按需选择：试剂耗材询价联系 <b>斯达康 / 农丽萍</b>（科研线）；仪器校准/工业耗材联系 <b>康腾 / 张经理</b>（企业线）。本工具不参与任何销售，仅作为实验记录场景下的对接入口。</p>';
   // 两家公司卡片
   const supList = [SUPPLIERS.research, SUPPLIERS.enterprise];
   supList.forEach((sp) => {
@@ -891,8 +908,6 @@ function renderMore() {
           <div class="supplier-tag">${sp.tagline}</div>
           <div class="supplier-line">联系人：<b>${sp.contact}</b></div>
           <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
-          <div class="supplier-line">邮箱：${sp.email}</div>
-          <div class="supplier-line supplier-web"><a href="${sp.website}" target="_blank" rel="noopener">${sp.website.replace('https://', '')}</a></div>
         </div>
       </div>
       <div class="supplier-brand">${esc(sp.brandText)}</div>
@@ -904,6 +919,14 @@ function renderMore() {
     </div>`;
   });
   $('view-more').innerHTML = html;
+}
+/* API 与密钥折叠行：点击向下展开填入 */
+function toggleApi(id) {
+  const el = $('api-' + id), caret = $('caret-' + id);
+  if (!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  if (caret) caret.style.transform = open ? 'rotate(180deg)' : '';
 }
 /* 仪器/校准快捷入口（康腾线） */
 function contactServiceFirstInstrument() {
@@ -1408,7 +1431,7 @@ function openInquireSheet(items, title, ctx) {
   const sp = pickSupplier(ctx || 'reagent'); _activeSupplier = sp;
   // items: [{ name, spec, qty, unit, lot, reason, brandHint }]
   const lines = items.map((it) => `  · ${it.name}${it.spec ? '（' + it.spec + '）' : ''} × ${it.qty}${it.unit || ''}${it.lot ? ' 批号 ' + it.lot : ''}${it.reason ? '  · ' + it.reason : ''}`).join('\n');
-  const text = `【实验台 · 询价单】\n联系人：${sp.contact}\n手机：${sp.phone}\n邮箱：${sp.email}\n公司：${sp.name}\n\n以下试剂/耗材需要询价：\n${lines}\n\n---\n品牌偏好（如有）：${items[0] && items[0].brandHint || '请推荐'}\n\n如方便请直接报单价/货期，谢谢！`;
+  const text = `【实验台 · 询价单】\n联系人：${sp.contact}\n手机：${sp.phone}\n公司：${sp.name}\n\n以下试剂/耗材需要询价：\n${lines}\n\n---\n品牌偏好（如有）：${items[0] && items[0].brandHint || '请推荐'}\n\n如方便请直接报单价/货期，谢谢！`;
   const equipLine = sp.equipmentText ? `<div class="supplier-brand" style="margin-top:6px">${esc(sp.equipmentText)}</div>` : '';
   const html = `<div class="grabber"></div><h2>${title || '询价单'}</h2>
     <p class="hint">系统已按本次需求生成询价文本。扫码添加 <b>${sp.contact}</b>（${sp.shortName}）微信，把询价文本粘过去即可；也可直接拨打电话。</p>
@@ -1420,8 +1443,6 @@ function openInquireSheet(items, title, ctx) {
         <div class="supplier-line">服务对象：<b>${sp.audience}</b></div>
         <div class="supplier-line">联系人：<b>${sp.contact}</b></div>
         <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
-        <div class="supplier-line">邮箱：${sp.email}</div>
-        <div class="supplier-line supplier-web"><a href="${sp.website}" target="_blank" rel="noopener">${sp.website.replace('https://', '')}</a></div>
       </div>
     </div>
     <div class="copy-box" id="inquireText">${esc(text)}</div>
@@ -1470,7 +1491,7 @@ function contactService(it) {
   const sp = pickSupplier('instrument'); _activeSupplier = sp;
   const d = daysUntil(it.calibration);
   const reason = d < 0 ? `已过期 ${-d} 天` : d <= 30 ? `剩 ${d} 天到期` : '预防性维护';
-  const text = `【实验台 · 仪器服务咨询】\n\n仪器：${it.name}\n备注：${it.note || '—'}\n校准到期：${it.calibration}（${reason}）\n\n请${sp.contact}协助：\n  1. 校准/检定服务报价\n  2. 备件与耗材配套\n  3. 如有现货请告知货期\n\n---\n${sp.shortName} · ${sp.phone} · ${sp.email}`;
+  const text = `【实验台 · 仪器服务咨询】\n\n仪器：${it.name}\n备注：${it.note || '—'}\n校准到期：${it.calibration}（${reason}）\n\n请${sp.contact}协助：\n  1. 校准/检定服务报价\n  2. 备件与耗材配套\n  3. 如有现货请告知货期\n\n---\n${sp.shortName} · ${sp.phone}`;
   const equipLine = sp.equipmentText ? `<div class="supplier-brand" style="margin-top:6px">${esc(sp.equipmentText)}</div>` : '';
   const html = `<div class="grabber"></div><h2>联系服务商</h2>
     <p class="hint">${it.name} 校准${d < 0 ? '已过期' : '临近'}，扫码添加 <b>${sp.contact}</b>（${sp.shortName}）咨询校准/检定/维护服务。</p>
@@ -1482,7 +1503,6 @@ function contactService(it) {
         <div class="supplier-line">服务对象：<b>${sp.audience}</b></div>
         <div class="supplier-line">联系人：<b>${sp.contact}</b></div>
         <div class="supplier-line">手机：<a href="${sp.phoneTel}">${sp.phone}</a></div>
-        <div class="supplier-line">邮箱：${sp.email}</div>
       </div>
     </div>
     <div class="copy-box" id="svcText">${esc(text)}</div>
@@ -2583,6 +2603,7 @@ $('fab').addEventListener('click', () => {
 });
 $('sheetBackdrop').addEventListener('click', closeSheet);
 $('modalBackdrop').addEventListener('click', closeModal);
+window.addEventListener('scroll', updateTitleScale, { passive: true });
 
 /* ---------------- 启动 ---------------- */
 seed();
@@ -2606,3 +2627,4 @@ migrateTemplateConsumables();
 migrateExperiments();
 maybeOnboard();
 renderAll();
+updateTitleScale();

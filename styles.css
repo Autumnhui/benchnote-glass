@@ -96,10 +96,19 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .topbar::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.4px;
   background:var(--edge-accent);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.7}
-.topbar-inner{padding:16px 20px 12px;position:relative}
-.topbar h1{margin:0;font-size:32px;font-weight:700;letter-spacing:-.5px;
+.topbar-inner{padding:14px 20px 11px;position:relative;transition:padding .15s ease}
+.topbar h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.15;transition:font-size .15s ease,line-height .15s ease;
   background:linear-gradient(120deg,#1d1d1f 55%, #6a64d8 130%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.subtitle{margin:2px 0 0;color:var(--muted);font-size:13px}
+.subtitle{margin:2px 0 0;color:var(--muted);font-size:13px;transition:opacity .15s ease,font-size .15s ease}
+
+/* API 与密钥：折叠两行 */
+.api-row{display:flex;align-items:center;justify-content:space-between;background:var(--glass);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border-radius:var(--radius-sm);box-shadow:var(--glass-shadow);padding:13px 14px;margin-bottom:8px;cursor:pointer}
+.api-row:active{transform:scale(.99)}
+.api-row-main{display:flex;align-items:center;gap:10px}
+.api-row-title{font-size:15px;font-weight:600;color:var(--ink)}
+.api-caret{font-size:18px;color:var(--muted);transition:transform .2s ease;line-height:1}
+.api-detail{background:rgba(255,255,255,.42);border-radius:var(--radius-sm);padding:12px 14px 14px;margin:-2px 0 10px;box-shadow:var(--glass-shadow)}
 
 .content{padding:14px 16px calc(108px + var(--safe-b));min-height:70vh}
 .section-title{font-size:13px;font-weight:600;color:var(--muted);margin:18px 6px 10px;display:flex;justify-content:space-between;align-items:center}

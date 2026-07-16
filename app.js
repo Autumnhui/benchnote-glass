@@ -520,9 +520,10 @@ function setHeader() {
 }
 function setFab() {
   const fab = $('fab');
-  if (currentView === 'experiments') { fab.classList.remove('hidden'); fab.textContent = '+'; }
-  else if (currentView === 'reagents') { fab.classList.remove('hidden'); fab.textContent = '+'; }
+  const on = (currentView === 'experiments' || currentView === 'reagents');
+  if (on) { fab.classList.remove('hidden'); fab.textContent = '+'; }
   else { fab.classList.add('hidden'); }
+  document.body.classList.toggle('fab-on', on);
 }
 
 function emptyState(title, sub) {
@@ -1047,12 +1048,14 @@ function renderMore() {
         <div class="field"><label>APIKey</label><input id="xfApiKey" type="text" value="${st.xfApiKey ? esc(st.xfApiKey) : ''}" placeholder="${st.xfApiKey ? '讯飞 APIKey' : '留空=使用内置凭证（推荐）'}"></div>
         <div class="field"><label>APISecret</label><input id="xfApiSecret" type="password" value="${st.xfApiSecret ? esc(st.xfApiSecret) : ''}" placeholder="${st.xfApiSecret ? '讯飞 APISecret' : '留空=使用内置凭证（推荐）'}"></div>`,
       save: '<button class="btn secondary" onclick="saveXfKey()">保存讯飞配置</button>',
-      help: '留空即使用内置凭证（已混淆内置，浏览器直连讯飞签名）；想用自己的账号请粘贴上方三项再保存。' },
+      help: '留空即使用内置默认凭证；想用自己的账号请粘贴上方三项再保存。',
+      link: { url: 'https://console.xfyun.cn/app/myapp', label: '前往讯飞开放平台控制台' } },
     { id: 'agnes', title: 'AI 整理', ok: agnesOk, step: '获取 Agnes Key',
-      stepD: '留空即可使用内置凭证（已混淆内置，直连 agnes-ai.com）；也可粘贴自己的 Agnes Key 直连。',
+      stepD: '留空即使用内置默认凭证；也可粘贴自己的 Agnes Key 直连。',
       fields: `<div class="field"><label>Agnes API Key</label><input id="agnesKey" type="password" value="${st.agnesKey ? esc(st.agnesKey) : ''}" placeholder="${st.agnesKey ? 'Agnes API Key' : '留空=使用内置凭证（推荐）'}"></div>`,
       save: '<button class="btn secondary" onclick="saveAgnesKey()">保存 Agnes 配置</button>',
-      help: '未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方 Key 再保存。' }
+      help: '未填写将自动使用内置默认凭证，可直接体验；想用自己的账号请粘贴上方 Key 再保存。',
+      link: { url: 'https://agnes-ai.com/', label: '前往 Agnes AI 官网' } }
   ];
   apiRows.forEach((r) => {
     html += `<div class="api-row" onclick="toggleApi('${r.id}')">
@@ -1068,6 +1071,7 @@ function renderMore() {
       </div>
       <div class="api-stat" id="apistat-${r.id}"></div>
       <div class="help">${r.help}</div>
+      ${r.link ? '<a class="api-link" href="' + r.link.url + '" target="_blank" rel="noopener">' + r.link.label + ' ›</a>' : ''}
     </div>`;
   });
   html += '<div class="section-title">数据备份</div>';
@@ -2817,10 +2821,15 @@ function fallbackCopy(text) {
 }
 
 /* ---------------- 通用 Sheet / Modal ---------------- */
-function openSheet(html) { $('sheet').innerHTML = html; $('sheetBackdrop').classList.add('show'); $('sheet').classList.add('show'); }
-function closeSheet() { $('sheet').classList.remove('show'); $('sheetBackdrop').classList.remove('show'); }
-function openModal(html) { $('modal').innerHTML = html; $('modalBackdrop').classList.add('show'); $('modal').classList.add('show'); }
-function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').classList.remove('show'); }
+function lockScroll() { document.documentElement.classList.add('overlay-open'); }
+function unlockScroll() {
+  if (!$('sheet').classList.contains('show') && !$('modal').classList.contains('show'))
+    document.documentElement.classList.remove('overlay-open');
+}
+function openSheet(html) { $('sheet').innerHTML = html; $('sheet').scrollTop = 0; $('sheetBackdrop').classList.add('show'); $('sheet').classList.add('show'); lockScroll(); }
+function closeSheet() { $('sheet').classList.remove('show'); $('sheetBackdrop').classList.remove('show'); unlockScroll(); }
+function openModal(html) { $('modal').innerHTML = html; $('modal').scrollTop = 0; $('modalBackdrop').classList.add('show'); $('modal').classList.add('show'); lockScroll(); }
+function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').classList.remove('show'); unlockScroll(); }
 
 /* ---------------- Apple 流体交互：Sheet 下滑拖拽关闭 ----------------
    从顶部抓手(.grabber)或弹窗空白区均可起拖；先判定手势方向，避免抢走

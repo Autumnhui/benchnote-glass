@@ -46,6 +46,9 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
+/* 弹层（sheet/modal）打开时锁定背景滚动 */
+html.overlay-open{overflow:hidden}
+html.overlay-open body{overflow:hidden}
 
 /* 环境光晕：让玻璃有内容可折射 */
 body{
@@ -114,8 +117,12 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .api-stat .api-stat-ok{color:#2a8;font-weight:600}
 .api-stat .api-stat-bad{color:#d33;font-weight:600}
 .api-stat .api-stat-prog{color:var(--muted)}
+.api-link{display:inline-block;margin-top:8px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none}
+.api-link:active{opacity:.6}
 
 .content{padding:14px 16px calc(108px + var(--safe-b));min-height:70vh}
+/* 记录/试剂页有悬浮新建按钮时，加大底部留白避免遮挡最后内容 */
+body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 .section-title{font-size:13px;font-weight:600;color:var(--muted);margin:18px 6px 10px;display:flex;justify-content:space-between;align-items:center}
 .section-title .more{font-size:12px;color:var(--blue);font-weight:600;cursor:pointer}
 

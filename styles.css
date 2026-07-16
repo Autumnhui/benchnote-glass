@@ -226,6 +226,11 @@ body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 .sheet.dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 .sheet h2{margin:0 0 4px;font-size:20px;font-weight:700}
 .sheet .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+/* 右上角悬浮关闭按钮（sticky，不随滚动消失） */
+.sheet-close-wrap{position:sticky;top:0;z-index:8;display:flex;justify-content:flex-end;margin:0 0 -2px;padding:2px 2px 0;pointer-events:none}
+.sheet-close{pointer-events:auto;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.18);color:#fff;font-size:15px;line-height:1;cursor:pointer;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.32,.72,0,1)}
+.sheet-close:active{transform:scale(.88);transition-duration:0s}
 
 /* modal */
 .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);width:90%;max-width:420px;z-index:41;

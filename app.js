@@ -510,7 +510,7 @@ function setHeader() {
   } else if (currentView === 'experiments') {
     $('viewTitle').textContent = '实验记录'; $('viewSub').textContent = `共 ${exps.length} 条`;
   } else if (currentView === 'reagents') {
-    $('viewTitle').textContent = reagSeg === 'reag' ? '试剂库存' : '冻存库';
+    $('viewTitle').textContent = '试剂/耗材 库存管理';
     $('viewSub').textContent = reagSeg === 'reag' ? `共 ${reags.length} 种` : `共 ${load(STORE.samples, []).length} 份`;
   } else if (currentView === 'tools') {
     $('viewTitle').textContent = '工具箱'; $('viewSub').textContent = '实验常用计算与小工具';
@@ -651,7 +651,7 @@ function renderReagents() {
     return true;
   });
   let html = `<div class="seg">
-    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
+    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂/耗材</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
     <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
@@ -686,7 +686,7 @@ function onReagSearch(v) { reagSearch = v; renderReagents(); const inp = $('reag
 function renderExpiryCalendar() {
   const reags = load(STORE.reag, []);
   let html = `<div class="seg">
-    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
+    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂/耗材</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
     <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
@@ -753,7 +753,7 @@ function renderFreezer() {
   const boxes = getBoxes();
   if (!boxes.includes(freezerBox)) freezerBox = boxes[0] || 'B1';
   let html = `<div class="seg">
-    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
+    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂/耗材</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
     <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
@@ -2828,7 +2828,7 @@ function unlockScroll() {
   if (!$('sheet').classList.contains('show') && !$('modal').classList.contains('show'))
     document.documentElement.classList.remove('overlay-open');
 }
-function openSheet(html) { $('sheet').innerHTML = html; $('sheet').scrollTop = 0; $('sheetBackdrop').classList.add('show'); $('sheet').classList.add('show'); lockScroll(); }
+function openSheet(html) { $('sheet').innerHTML = '<div class="sheet-close-wrap"><button class="sheet-close" onclick="closeSheet()" aria-label="关闭">✕</button></div>' + html; $('sheet').scrollTop = 0; $('sheetBackdrop').classList.add('show'); $('sheet').classList.add('show'); lockScroll(); }
 function closeSheet() { $('sheet').classList.remove('show'); $('sheetBackdrop').classList.remove('show'); unlockScroll(); }
 function openModal(html) { $('modal').innerHTML = html; $('modal').scrollTop = 0; $('modalBackdrop').classList.add('show'); $('modal').classList.add('show'); lockScroll(); }
 function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').classList.remove('show'); unlockScroll(); }

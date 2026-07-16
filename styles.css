@@ -467,9 +467,44 @@ textarea{min-height:96px;resize:vertical}
 .ec-gtitle.warn{color:#c77700}
 .ec-gtitle.info{color:var(--blue)}
 
-/* 减少动效偏好（Apple 规范：禁用滑动/缩放/脉冲等非必要动效，改为瞬时呈现，避免前庭刺激） */
+/* ============================================================
+   自然获客：询价 / 供应商卡片 / 模板耗材
+   全部低调配色，灰色次要按钮，不与主功能争抢视觉
+   ============================================================ */
+.inquire-mini{flex:none;background:rgba(255,255,255,.65);border:1px solid rgba(120,113,254,.3);border-radius:10px;padding:4px 10px;font-size:12px;color:var(--accent-2);cursor:pointer;font-weight:500;transition:transform .2s cubic-bezier(.32,.72,0,1),background .2s}
+.inquire-mini:active{transform:scale(.94);background:rgba(94,87,254,.1)}
+.inquire-mini:hover{background:rgba(94,87,254,.08)}
+
+.supplier-card{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:14px;box-shadow:var(--glass-shadow);backdrop-filter:blur(10px)}
+.supplier-qr{flex:none;width:108px;height:108px;border-radius:8px;background:#fff;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.06);object-fit:contain}
+.supplier-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.supplier-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.4}
+.supplier-tag{font-size:11px;color:var(--accent-2);background:rgba(94,87,254,.08);border-radius:6px;padding:2px 8px;align-self:flex-start;margin:2px 0 4px}
+.supplier-line{font-size:12px;color:var(--ink);line-height:1.6}
+.supplier-line a{color:var(--accent-2);text-decoration:none}
+.supplier-line a:hover{text-decoration:underline}
+.supplier-web{font-size:11px;color:var(--muted)}
+.supplier-web a{color:var(--muted)}
+.supplier-brand{font-size:11px;color:var(--muted);line-height:1.55;margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.4);border-radius:8px}
+.supplier-hint{font-size:11px;color:var(--muted);line-height:1.6;background:rgba(255,255,255,.4);border-radius:8px;padding:8px 10px}
+.supplier-card-block{background:linear-gradient(180deg,rgba(94,87,254,.04) 0%,rgba(255,255,255,.6) 60%)}
+
+.tpl-consumables{margin-top:14px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:12px;box-shadow:var(--glass-shadow)}
+.tpl-ctitle{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px}
+.tpl-csub{font-size:11px;color:var(--muted);font-weight:400;margin-left:4px}
+.tpl-crow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.04);font-size:12px}
+.tpl-crow:last-of-type{border-bottom:0}
+.tpl-cname{flex:2;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tpl-cbrand{flex:1;color:var(--accent-2);background:rgba(94,87,254,.08);border-radius:6px;padding:2px 6px;font-size:11px;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tpl-ccat{flex:none;color:var(--muted);font-size:11px;min-width:36px;text-align:right}
+.tpl-cbtn{margin-top:10px;width:100%}
+
+/* ============================================================
+   减少动效偏好（Apple 规范：禁用滑动/缩放/脉冲等非必要动效，改为瞬时呈现，避免前庭刺激）
+   ============================================================ */
 @media (prefers-reduced-motion:reduce){
   body::before,body::after{animation:none}
   .sheet,.modal,.sheet-backdrop,.modal-backdrop,.fab,.btn,.quick .q,.card.tap,.tool,.list-row,.tab,.tab svg,.switch,.switch::after,.mic.recording,.timer-presets .p,.chip,.voice .vtoggle{transition-duration:0s !important;animation:none !important}
   .toast{transition:opacity .2s ease}
+  .inquire-mini{transition-duration:0s !important}
 }

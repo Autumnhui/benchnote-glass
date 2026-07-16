@@ -59,11 +59,61 @@ function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
 
 /* ---------------- 种子数据 ---------------- */
 const DEFAULT_TEMPLATES = [
-  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS' },
-  { id: 'tp2', title: '质粒小量提取', raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱' },
-  { id: 'tp3', title: '细胞传代', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶' },
-  { id: 'tp4', title: '蛋白纯化（AKTA）', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL' }
+  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
+    consumables: [
+      { name: '超滤管 15 mL 30 kDa', brand: '迈博瑞', cat: '耗材' },
+      { name: '0.22 μm 针头滤器', brand: '迈博瑞', cat: '耗材' },
+      { name: 'PBS 缓冲液 (1× pH7.4)', brand: 'Biosharp/迈邦', cat: '试剂' },
+      { name: '50 mL 离心管', brand: 'Bioland/耐思', cat: '耗材' },
+      { name: '10 mL 血清移液管', brand: 'Bioland/Nest', cat: '耗材' }
+    ] },
+  { id: 'tp2', title: '质粒小量提取', raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱',
+    consumables: [
+      { name: 'LB 液体培养基', brand: 'Solarbio', cat: '试剂' },
+      { name: '卡那霉素 (50 mg/mL)', brand: 'Solarbio', cat: '试剂' },
+      { name: 'P1/P2/N3 缓冲液', brand: '通用', cat: '试剂' },
+      { name: '1.5 mL EP 管', brand: 'Axygen/Bioland', cat: '耗材' },
+      { name: '质粒小提试剂盒', brand: '通用', cat: '试剂' },
+      { name: 'Benzonase 核酸酶 (去RNA)', brand: 'NEB', cat: '试剂' }
+    ] },
+  { id: 'tp3', title: '细胞传代', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶',
+    consumables: [
+      { name: '完全培养基 (DMEM/RPMI)', brand: '迈邦/Lonza', cat: '试剂' },
+      { name: '0.25% 胰酶-EDTA', brand: '迈邦/Biosharp', cat: '试剂' },
+      { name: 'PBS (1×)', brand: '迈邦/Biosharp', cat: '试剂' },
+      { name: 'T25 细胞培养瓶', brand: 'Bioland/Nest', cat: '耗材' },
+      { name: '胎牛血清 FBS', brand: 'Bioland FORLAB/Lonza', cat: '试剂' },
+      { name: '10 mL 移液管', brand: 'Bioland/Nest', cat: '耗材' },
+      { name: '15/50 mL 离心管', brand: 'Bioland/Nest', cat: '耗材' }
+    ] },
+  { id: 'tp4', title: '蛋白纯化（AKTA）', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL',
+    consumables: [
+      { name: 'Protein A 填料 / 预装柱', brand: '楚天微球', cat: '耗材' },
+      { name: 'Tris/Hepes/NaCl 等缓冲液组分', brand: 'Sigma/Solarbio', cat: '试剂' },
+      { name: '超滤离心管 30 kDa', brand: '迈博瑞', cat: '耗材' },
+      { name: '0.22 μm 滤膜', brand: '迈博瑞/Sigma', cat: '耗材' },
+      { name: 'C-Flex 工艺管路', brand: '圣戈班', cat: '耗材' },
+      { name: 'Benzonase 核酸酶', brand: 'NEB/迈博瑞', cat: '试剂' }
+    ] }
 ];
+
+/* ---------------- 供应商/合作伙伴配置（自然获客入口） ----------------
+   由康腾生物配置。所有出现「询价」「找供应商」「联系服务商」的地方都从这里读。
+   修改这里即可全站生效。                                              */
+const SUPPLIER = {
+  name: '广州康腾生物科技有限公司',
+  shortName: '康腾生物',
+  tagline: '生物制药工艺链 · 研发到放行一站搞定',
+  contact: '张经理',
+  phone: '189-2226-6118',
+  phoneTel: 'tel://18922266118',
+  email: 'zhangyongsheng@kangtengbio.com',
+  website: 'https://www.kangtengbio.com',
+  wechatQr: 'wechat-qr.png',
+  article: 'https://mp.weixin.qq.com/s/vZjuDG_NfYHbIxeirysBFA',
+  brandText: '授权品牌：Lonza龙沙 · 迈邦 · 楚天微球 · 圣戈班 · 迈博瑞 · 贝兰伯 · BioLegend · Applikon｜优势代理：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Nest 等',
+  equipmentText: '仪器设备：中科都菱冰箱(2-8℃/-86℃) · 液氮罐 · 离心机'
+};
 function ensureTemplateDefaults() {
   const t = load(STORE.templates, null);
   if (Array.isArray(t) && t.length) return;   // 用户已有模板则不覆盖
@@ -292,15 +342,16 @@ function renderOverview() {
   const alerts = [];
   reags.forEach((r) => {
     const st = reagStatus(r);
-    if (st.key === 'bad') alerts.push({ color: 'var(--red)', name: r.name, desc: `批号 ${r.lot} · ${st.text}（${r.expiry}）` });
-    else if (st.key === 'warn' && st.text === '需补货') alerts.push({ color: 'var(--orange)', name: r.name, desc: `库存 ${r.qty}${r.unit} ≤ 安全库存 ${r.min}${r.unit}` });
-    else if (st.key === 'warn') alerts.push({ color: 'var(--orange)', name: r.name, desc: `批号 ${r.lot} · ${st.text}（${r.expiry}）` });
+    if (st.key === 'bad') alerts.push({ id: r.id, color: 'var(--red)', name: r.name, desc: `批号 ${r.lot} · ${st.text}（${r.expiry}）` });
+    else if (st.key === 'warn' && st.text === '需补货') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `库存 ${r.qty}${r.unit} ≤ 安全库存 ${r.min}${r.unit}` });
+    else if (st.key === 'warn') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `批号 ${r.lot} · ${st.text}（${r.expiry}）` });
   });
   if (alerts.length) {
     html += '<div class="section-title">需要关注</div>';
     alerts.forEach((a) => {
-      html += `<div class="alert"><div class="dot" style="background:${a.color}"></div><div class="txt"><b>${esc(a.name)}</b><p>${esc(a.desc)}</p></div></div>`;
+      html += `<div class="alert"><div class="dot" style="background:${a.color}"></div><div class="txt"><b>${esc(a.name)}</b><p>${esc(a.desc)}</p><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${a.id}')">询价</button></div></div>`;
     });
+    html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${alerts.length}）</button>`;
   } else {
     html += '<div class="section-title">状态</div><div class="card"><div class="row1"><h3>一切正常</h3></div><div class="meta">无临期、过期或低库存试剂。</div></div>';
   }
@@ -394,8 +445,10 @@ function renderReagents() {
     list.forEach((r) => {
       const st = reagStatus(r);
       const tagCls = st.key === 'ok' ? 'ok' : st.key === 'warn' ? 'warn' : 'bad';
+      const canInquire = st.text === '需补货' || st.text === '已过期' || st.text.includes('临期');
+      const inquireBtn = canInquire ? `<button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button>` : '';
       html += `<div class="card tap" onclick="openReagSheet('${r.id}')">
-        <div class="row1"><h3>${esc(r.name)}</h3><span class="tag ${tagCls}">${st.text}</span></div>
+        <div class="row1"><h3>${esc(r.name)}</h3>${inquireBtn}<span class="tag ${tagCls}">${st.text}</span></div>
         <div class="meta">批号 ${esc(r.lot)} · 库存 ${r.qty}${r.unit} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div></div>`;
     });
   }
@@ -451,7 +504,7 @@ function renderExpiryCalendar() {
         const ico = { ok: 'g', warn: 'o', bad: 'r' }[tk];
         html += `<div class="list-row" onclick="openReagSheet('${r.id}')"><div class="lr-ico ${ico}">⏳</div>
           <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">批号 ${esc(r.lot)} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div></div>
-          <div class="lr-right"><span class="tag ${tk}">${dd}</span></div></div>`;
+          <div class="lr-right"><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')">询价</button><span class="tag ${tk}">${dd}</span></div></div>`;
       });
       html += '</div>';
     }
@@ -786,6 +839,29 @@ function renderMore() {
     <div class="help">导出为 JSON 文件；换设备时导入即可恢复全部记录与配置。</div>`;
   html += '<div class="section-title">帮助</div>';
   html += `<div class="list-row" onclick="openOnboarding()"><div class="lr-ico">👋</div><div class="lr-main"><div class="lr-title">功能引导</div><div class="lr-sub">重新查看功能介绍与密钥配置提示</div></div><div class="lr-right">›</div></div>`;
+  html += '<div class="section-title">供应合作</div>';
+  html += `<div class="card supplier-card-block">
+    <div class="row1"><h3>${SUPPLIER.shortName}</h3><span class="tag ok">试剂耗材合作</span></div>
+    <p class="supplier-tag" style="margin:6px 0 10px">${SUPPLIER.tagline}</p>
+    <div class="supplier-card">
+      <img class="supplier-qr" src="${SUPPLIER.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
+      <div class="supplier-info">
+        <div class="supplier-name">${SUPPLIER.name}</div>
+        <div class="supplier-tag">${SUPPLIER.tagline}</div>
+        <div class="supplier-line">联系人：<b>${SUPPLIER.contact}</b></div>
+        <div class="supplier-line">手机：<a href="${SUPPLIER.phoneTel}">${SUPPLIER.phone}</a></div>
+        <div class="supplier-line">邮箱：${SUPPLIER.email}</div>
+        <div class="supplier-line supplier-web"><a href="${SUPPLIER.website}" target="_blank" rel="noopener">${SUPPLIER.website.replace('https://', '')}</a></div>
+      </div>
+    </div>
+    <div class="supplier-brand">${esc(SUPPLIER.brandText)}</div>
+    <div class="supplier-brand" style="margin-top:6px">${esc(SUPPLIER.equipmentText)}</div>
+    <div class="btn-row" style="margin-top:12px">
+      <a class="btn secondary" href="${SUPPLIER.article}" target="_blank" rel="noopener">📖 公司介绍文章</a>
+      <button class="btn" onclick="inquireExpiring()">📤 一键询价</button>
+    </div>
+    <div class="supplier-hint" style="margin-top:8px">扫码加 ${SUPPLIER.contact} 微信，需要补货/校准/方案设计随时找他；本工具不参与任何销售，仅作为实验记录场景下的对接入口。</div>
+  </div>`;
   $('view-more').innerHTML = html;
 }
 function toggleVoice() {
@@ -1068,8 +1144,10 @@ function openReagSheet(id) {
     <div class="field"><label>有效期</label><input id="rExp" type="date" value="${v('expiry')}"></div>
     <div class="field"><label>安全库存（低于即提醒补货）</label><input id="rMin" type="number" value="${v('min') || 0}" placeholder="如：1"></div>
     <div class="field"><label>供应商</label><input id="rSup" value="${v('supplier')}" placeholder="选填"></div>
+    <div class="field"><label>品牌偏好（询价时使用）</label><input id="rBrand" value="${v('brand')}" placeholder="如：迈博瑞 / Lonza / Solarbio（选填）"></div>
     <div class="btn-row" style="margin-top:8px">
       ${r ? '<button class="btn danger" onclick="deleteReag()">删除</button>' : ''}
+      ${r ? '<button class="btn secondary" onclick="inquireReag(\'' + r.id + '\')">📤 询价</button>' : ''}
       <button class="btn" onclick="saveReag()">保存</button>
     </div>`;
   openSheet(html);
@@ -1078,7 +1156,7 @@ function saveReag() {
   const name = $('rName').value.trim();
   if (!name) { toast('请填写名称'); return; }
   const r = { name, lot: $('rLot').value.trim(), qty: $('rQty').value, unit: $('rUnit').value.trim() || '瓶',
-    location: $('rLoc').value.trim(), expiry: $('rExp').value, min: $('rMin').value || 0, supplier: $('rSup').value.trim() };
+    location: $('rLoc').value.trim(), expiry: $('rExp').value, min: $('rMin').value || 0, supplier: $('rSup').value.trim(), brand: ($('rBrand') ? $('rBrand').value.trim() : '') };
   const reags = load(STORE.reag, []);
   if (editingReagId) { const i = reags.findIndex((x) => x.id === editingReagId); reags[i] = { ...reags[i], ...r }; }
   else reags.push({ id: uid('r'), ...r });
@@ -1249,7 +1327,7 @@ function openPurchase() {
   const reags = load(STORE.reag, []);
   const need = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
   let lines = '请购单（自动生成）\n';
-  let html = '<div class="grabber"></div><h2>请购单</h2><p class="hint">系统根据“低库存 + 临期/过期”自动汇总，可复制后走采购流程。</p>';
+  let html = '<div class="grabber"></div><h2>请购单</h2><p class="hint">系统根据"低库存 + 临期/过期"自动汇总，可复制后走采购流程，或一键发给供应商。</p>';
   if (!need.length) html += emptyState('暂无需采购项', '');
   else {
     need.forEach((r) => {
@@ -1259,11 +1337,115 @@ function openPurchase() {
       lines += `- ${r.name} | 批号 ${r.lot} | 建议采购 ${suggest}${r.unit} | 原因：${reason} | 供应商：${r.supplier || '—'}\n`;
     });
     html += `<div class="copy-box" id="poText">${esc(lines)}</div>
-      <button class="btn" style="margin-top:14px" onclick="copyPO()">复制请购单</button>`;
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn secondary" onclick="copyPO()">📋 复制请购单</button>
+        <button class="btn" onclick="inquireExpiring()">📤 发送给供应商</button>
+      </div>
+      <div class="supplier-hint">发送给供应商：自动生成含联系方式的询价单，扫码加 ${SUPPLIER.contact}（${SUPPLIER.shortName}）微信即可。</div>`;
   }
   openModal(html);
 }
 function copyPO() { const t = $('poText').textContent; navigator.clipboard?.writeText(t).then(() => toast('已复制'), () => toast('复制失败')); }
+
+/* ============================================================
+   自然获客入口：询价 / 采购单 / 校准服务 / 模板耗材
+   所有供应商信息统一读 SUPPLIER；按钮低调，只在需求发生时出现
+   ============================================================ */
+
+/* 询价单 sheet（含微信二维码 + 一键复制） */
+function openInquireSheet(items, title) {
+  // items: [{ name, spec, qty, unit, lot, reason, brandHint }]
+  const lines = items.map((it) => `  · ${it.name}${it.spec ? '（' + it.spec + '）' : ''} × ${it.qty}${it.unit || ''}${it.lot ? ' 批号 ' + it.lot : ''}${it.reason ? '  · ' + it.reason : ''}`).join('\n');
+  const text = `【实验台 · 询价单】\n联系人：${SUPPLIER.contact}\n手机：${SUPPLIER.phone}\n邮箱：${SUPPLIER.email}\n公司：${SUPPLIER.name}\n\n以下试剂/耗材需要询价：\n${lines}\n\n---\n品牌偏好（如有）：${items[0] && items[0].brandHint || '请推荐'}\n\n如方便请直接报单价/货期，谢谢！`;
+  const html = `<div class="grabber"></div><h2>${title || '询价单'}</h2>
+    <p class="hint">系统已按本次需求生成询价文本。扫码添加 ${SUPPLIER.contact}（${SUPPLIER.shortName}）微信，把询价文本粘过去即可；也可直接拨打电话。</p>
+    <div class="supplier-card">
+      <img class="supplier-qr" src="${SUPPLIER.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
+      <div class="supplier-info">
+        <div class="supplier-name">${SUPPLIER.name}</div>
+        <div class="supplier-tag">${SUPPLIER.tagline}</div>
+        <div class="supplier-line">联系人：<b>${SUPPLIER.contact}</b></div>
+        <div class="supplier-line">手机：<a href="${SUPPLIER.phoneTel}">${SUPPLIER.phone}</a></div>
+        <div class="supplier-line">邮箱：${SUPPLIER.email}</div>
+        <div class="supplier-line supplier-web"><a href="${SUPPLIER.website}" target="_blank" rel="noopener">${SUPPLIER.website.replace('https://', '')}</a></div>
+      </div>
+    </div>
+    <div class="copy-box" id="inquireText">${esc(text)}</div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn secondary" onclick="copyInquireText()">📋 复制询价文本</button>
+      <button class="btn" onclick="window.location.href='${SUPPLIER.phoneTel}'">📞 拨号</button>
+    </div>
+    <div class="supplier-brand">${esc(SUPPLIER.brandText)}</div>
+    <div class="supplier-brand" style="margin-top:6px">${esc(SUPPLIER.equipmentText)}</div>`;
+  openSheet(html);
+}
+function copyInquireText() { const t = $('inquireText').textContent; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + SUPPLIER.contact), () => toast('复制失败')); }
+
+/* ① 单个试剂询价（来自试剂详情/列表） */
+function inquireReag(id) {
+  const r = load(STORE.reag, []).find((x) => x.id === id);
+  if (!r) return;
+  const st = reagStatus(r);
+  const reason = st.text === '需补货' ? '库存不足' : st.text === '已过期' ? '已过期需替换' : st.text.includes('临期') ? `临期（剩${daysUntil(r.expiry)}天）` : '常规采购';
+  const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min) || 1);
+  openInquireSheet([{ name: r.name, spec: r.spec || r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '请推荐' }], '询价 · ' + r.name);
+}
+
+/* ② 批量询价（来自效期日历采购清单） */
+function inquireExpiring() {
+  const reags = load(STORE.reag, []);
+  const groups = [
+    ['已过期', (r) => daysUntil(r.expiry) < 0],
+    ['7 天内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && d <= 7; }],
+    ['30 天内到期', (r) => { const d = daysUntil(r.expiry); return d > 7 && d <= 30; }],
+    ['需补货', (r) => Number(r.qty) <= Number(r.min || 0)]
+  ];
+  const items = [];
+  groups.forEach(([_, fn]) => reags.filter(fn).forEach((r) => {
+    const st = reagStatus(r);
+    const reason = st.text === '需补货' ? '库存不足' : daysUntil(r.expiry) < 0 ? '已过期' : `剩${daysUntil(r.expiry)}天`;
+    const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min) || 1);
+    items.push({ name: r.name, spec: r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '' });
+  }));
+  if (!items.length) { toast('当前没有需要询价的试剂'); return; }
+  openInquireSheet(items, '采购清单询价（' + items.length + ' 项）');
+}
+
+/* ③ 仪器校准 / 维修联系服务商 */
+function contactService(it) {
+  const d = daysUntil(it.calibration);
+  const reason = d < 0 ? `已过期 ${-d} 天` : d <= 30 ? `剩 ${d} 天到期` : '预防性维护';
+  const text = `【实验台 · 仪器服务咨询】\n\n仪器：${it.name}\n备注：${it.note || '—'}\n校准到期：${it.calibration}（${reason}）\n\n请${SUPPLIER.contact}协助：\n  1. 校准/检定服务报价\n  2. 备件与耗材配套\n  3. 如有现货请告知货期\n\n---\n${SUPPLIER.shortName} · ${SUPPLIER.phone} · ${SUPPLIER.email}`;
+  const html = `<div class="grabber"></div><h2>联系服务商</h2>
+    <p class="hint">${it.name} 校准${d < 0 ? '已过期' : '临近'}，扫码添加 ${SUPPLIER.contact} 咨询校准/检定/维护服务。</p>
+    <div class="supplier-card">
+      <img class="supplier-qr" src="${SUPPLIER.wechatQr}" alt="微信二维码" onerror="this.style.display='none'">
+      <div class="supplier-info">
+        <div class="supplier-name">${SUPPLIER.name}</div>
+        <div class="supplier-tag">${SUPPLIER.tagline}</div>
+        <div class="supplier-line">联系人：<b>${SUPPLIER.contact}</b></div>
+        <div class="supplier-line">手机：<a href="${SUPPLIER.phoneTel}">${SUPPLIER.phone}</a></div>
+        <div class="supplier-line">邮箱：${SUPPLIER.email}</div>
+      </div>
+    </div>
+    <div class="copy-box" id="svcText">${esc(text)}</div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn secondary" onclick="copyServiceText()">📋 复制服务需求</button>
+      <button class="btn" onclick="window.location.href='${SUPPLIER.phoneTel}'">📞 拨号</button>
+    </div>
+    <div class="supplier-brand">${esc(SUPPLIER.brandText)}</div>
+    <div class="supplier-brand" style="margin-top:6px">${esc(SUPPLIER.equipmentText)}</div>`;
+  openSheet(html);
+}
+function copyServiceText() { const t = $('svcText').textContent; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + SUPPLIER.contact), () => toast('复制失败')); }
+
+/* ④ 实验模板推荐耗材 → 询价 */
+function inquireTemplate(tplId) {
+  const t = load(STORE.templates, []).find((x) => x.id === tplId);
+  if (!t || !t.consumables) return;
+  const items = t.consumables.map((c) => ({ name: c.name, spec: c.cat, qty: 1, unit: '份', reason: '模板「' + t.title + '」推荐', brandHint: c.brand }));
+  openInquireSheet(items, '模板耗材询价 · ' + t.title);
+}
 
 /* ============================================================
    计时器：跳手机原生 App（跨平台适配）
@@ -1719,6 +1901,13 @@ function useTemplate(id) {
   html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
   html += `<div class="field"><label>起始时间（可选，用于重排时间线）</label><input id="tfStart" type="time"></div>`;
   html += `<div id="tfPreview" class="step" style="margin-top:6px"></div>`;
+  if (t.consumables && t.consumables.length) {
+    html += `<div class="tpl-consumables"><div class="tpl-ctitle">本实验推荐耗材 <span class="tpl-csub">（可一键询价）</span></div>`;
+    t.consumables.forEach((c) => {
+      html += `<div class="tpl-crow"><span class="tpl-cname">${esc(c.name)}</span><span class="tpl-cbrand">${esc(c.brand)}</span><span class="tpl-ccat">${esc(c.cat)}</span></div>`;
+    });
+    html += `<button class="btn secondary tpl-cbtn" onclick="inquireTemplate('${t.id}')">📤 一键询价这些耗材</button></div>`;
+  }
   html += `<div class="btn-row" style="margin-top:12px">
     <button class="btn ghost" onclick="closeSheet()">取消</button>
     <button class="btn" onclick="generateFromTemplate('${id}')">生成记录</button></div>`;
@@ -1775,9 +1964,12 @@ function openInstruments() {
       const d = daysUntil(it.calibration);
       const cls = d < 0 ? 'r' : d <= 30 ? 'o' : 'g';
       const tag = d < 0 ? '已过期' : d <= 30 ? `校准剩 ${d} 天` : `校准剩 ${d} 天`;
+      const needSvc = d <= 30;
+      const itJson = JSON.stringify(it).replace(/"/g, '&quot;');
+      const svcBtn = needSvc ? `<button class="inquire-mini" onclick="event.stopPropagation();contactService(${itJson})" title="联系服务商（康腾）">联系服务商</button>` : '';
       html += `<div class="list-row" onclick="editInstrument('${it.id}')"><div class="lr-ico ${cls}">⚙️</div>
         <div class="lr-main"><div class="lr-title">${esc(it.name)}</div><div class="lr-sub">${it.note || ''} · 校准 ${esc(it.calibration)}</div></div>
-        <div class="lr-right" style="color:${d <= 30 ? 'var(--orange)' : 'var(--muted)'}">${tag}</div></div>`;
+        <div class="lr-right" style="display:flex;gap:6px;align-items:center">${svcBtn}<span style="color:${d <= 30 ? 'var(--orange)' : 'var(--muted)'}">${tag}</span></div></div>`;
     });
   }
   html += `<button class="btn" style="margin-top:8px" onclick="editInstrument(null)">+ 添加仪器</button>`;

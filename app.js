@@ -2610,7 +2610,7 @@ async function callAgnesParse(raw) {
   const sys = `你是实验室电子记录本（ELN）的资深实验记录整理助手。用户会给你一段「原始实验记录」（可能口语化、零散、含语音转写误差）。请按以下要求处理：
 
 1. 先整体理解本次实验的目的与流程；
-2. 将记录**总结归纳**为条理清晰、可复现的实验步骤序列：去除口语冗余、补全被省略的动作、合并同类操作、按时间或逻辑顺序排列；不要把每句话原样当成一步，也不要遗漏关键操作；
+2. 将记录整理为条理清晰、可复现的实验步骤序列：按时间或逻辑顺序排列；**尽量保留原始记录的每一步关键操作、用量、条件与参数（浓度、体积、温度、时间、转速等），不要省略重要步骤，也不要丢掉关键数值**；仅在动作与对象完全重复时才合并为一步；不要凭空编造记录中未提及的信息；宁可多分几步，也不要把关键操作合并掉；
 3. 识别本次实验的「代表性样本名」与「批号/货号」——它们正是实验模板里常用留空占位符 {{样本名}}、{{批号}} 所指的信息。若整条记录围绕同一样本/批号，请填到顶层 sample / lot 字段；若各步骤样本或批号不同，则只在对应 step 内的 material / lot 填写，顶层留空字符串；
 4. 把能识别的信息分别填入下方 JSON 的对应字段。
 
@@ -2639,7 +2639,7 @@ async function callAgnesParse(raw) {
     method: 'POST',
     headers: headers,
     signal: ctrl.signal,
-    body: JSON.stringify({ model: 'agnes-1.5-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: raw }], temperature: 0.2, max_tokens: 2000, stream: false })
+    body: JSON.stringify({ model: 'agnes-1.5-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: raw }], temperature: 0.2, max_tokens: 4000, stream: false })
   });
   clearTimeout(to);
   if (!res.ok) throw new Error('agnes ' + res.status);

@@ -172,19 +172,8 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .tab svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s cubic-bezier(.32,.72,0,1);position:relative;z-index:2}
 .tab span{position:relative;z-index:2;transition:opacity .2s}
 .tab.active{color:var(--accent-2)}
-/* 选中项：液态玻璃「透镜气泡」——Apple 液态玻璃招牌指示 */
-.tab.active::before{content:"";position:absolute;left:50%;top:3px;transform:translateX(-50%);
-  width:58px;height:48px;border-radius:22px;
-  background:linear-gradient(160deg,rgba(255,255,255,.42),rgba(255,255,255,.10));
-  backdrop-filter:blur(18px) saturate(230%) var(--lg);-webkit-backdrop-filter:blur(18px) saturate(230%);
-  box-shadow:0 8px 20px rgba(31,45,90,.22), 0 0 0 1px rgba(255,255,255,.6) inset,
-    0 0 0 1.5px rgba(94,87,254,.20), 0 -3px 8px rgba(94,87,254,.18) inset;
-  z-index:1}
-/* 气泡顶部镜面高光 */
-.tab.active::after{content:"";position:absolute;left:50%;top:3px;transform:translateX(-50%);
-  width:58px;height:48px;border-radius:22px;pointer-events:none;z-index:1;opacity:.9;
-  background:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,0) 42%)}
-.tab.active svg{transform:translateY(-1px) scale(1.06);filter:drop-shadow(0 3px 7px rgba(94,87,254,.5));color:var(--accent-2)}
+/* 选中态：高亮 + 阴影（简洁，无玻璃气泡） */
+.tab.active svg{transform:translateY(-2px) scale(1.06);filter:drop-shadow(0 4px 9px rgba(94,87,254,.5));color:var(--accent-2)}
 
 /* fab —— 玻璃质感圆钮 */
 .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + var(--safe-b));z-index:31;

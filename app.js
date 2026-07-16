@@ -65,7 +65,7 @@ const EMBED = {
   xfApiKey: _obfDec('dwtWV199UUZWaEgEbFZVC11EOVABBAUgUQtTDnZURgQ='),
   xfApiSecret: _obfDec('GFk/GicadQ4rGDVXEjUEWyhBFkp9AGE4fDkyEgACOg0=')
 };
-function getSettings() { const s = Object.assign({ voiceOn: true, agnesKey: '', xfAppid: '', xfApiKey: '', xfApiSecret: '' }, load(STORE.settings, {})); return s; }
+function getSettings() { const s = Object.assign({ voiceOn: false, agnesKey: '', xfAppid: '', xfApiKey: '', xfApiSecret: '' }, load(STORE.settings, {})); return s; }
 function setSettings(s) { save(STORE.settings, s); }
 function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
 
@@ -608,6 +608,7 @@ function renderExpList() {
   if (expSearch) {
     const q = expSearch.toLowerCase();
     exps = exps.filter((e) => (e.title + ' ' + (e.raw || '') + ' ' + (e.operator || '') + ' ' +
+      (e.sample || '') + ' ' + (e.lot || '') + ' ' +
       (e.steps || []).map((s) => (s.material || '') + ' ' + (s.lot || '')).join(' ') + ' ' +
       (e.tags || []).join(' ')).toLowerCase().includes(q));
   }
@@ -620,9 +621,13 @@ function renderExpList() {
     exps.forEach((e) => {
       const lots = [...new Set((e.steps || []).map((s) => s.lot).filter(Boolean))];
       const tags = (e.tags || []).map((t) => `<span class="tag gray">#${esc(t)}</span>`).join(' ');
+      const metaLot = e.lot || (lots.length ? lots.join('、') : '');
+      const metaParts = [(e.steps || []).length + ' 个步骤'];
+      if (e.sample) metaParts.push('样本 ' + esc(e.sample));
+      if (metaLot) metaParts.push('批号 ' + esc(metaLot));
       html += `<div class="card tap" onclick="openExpSheet('${e.id}')">
         <div class="row1"><h3>${esc(e.title)}</h3><span class="tag gray">${fmtDate(e.createdAt)}</span></div>
-        <div class="meta">${(e.steps || []).length} 个步骤${lots.length ? ' · 批号 ' + esc(lots.join('、')) : ''}</div>
+        <div class="meta">${metaParts.join(' · ')}</div>
         ${tags ? '<div class="tags-row">' + tags + '</div>' : ''}
         <div class="snippet">${esc(e.raw)}</div></div>`;
     });
@@ -1057,7 +1062,11 @@ function renderMore() {
     <div class="api-detail" id="api-${r.id}" style="display:none">
       <div class="kg-step"><span class="kg-num">·</span><div><div class="kg-t">${r.step}</div><div class="kg-d">${r.stepD}</div></div></div>
       ${r.fields}
-      ${r.save}
+      <div class="btn-row" style="gap:8px;flex-wrap:wrap">
+        ${r.save}
+        <button class="btn secondary" id="test-${r.id}" onclick="testApiConn('${r.id}', this)">🧪 测试连通</button>
+      </div>
+      <div class="api-stat" id="apistat-${r.id}"></div>
       <div class="help">${r.help}</div>
     </div>`;
   });
@@ -1108,6 +1117,49 @@ function toggleApi(id) {
   el.style.display = open ? 'block' : 'none';
   if (caret) caret.style.transform = open ? 'rotate(180deg)' : '';
 }
+/* 测试 AI / 语音连通状态 */
+async function testApiConn(id, btn) {
+  const stat = $('apistat-' + id);
+  const setStat = (s) => { if (stat) stat.innerHTML = s; };
+  if (btn) { btn.disabled = true; btn.textContent = '测试中…'; }
+  setStat('<span class="api-stat-prog">⏳ 正在测试连通…</span>');
+  try {
+    if (id === 'agnes') {
+      const c = agnesCreds();
+      if (!c.key) { setStat('<span class="api-stat-bad">❌ 未配置凭证（无内置默认且未填写 Key）</span>'); return; }
+      const base = 'https://apihub.agnes-ai.com';
+      const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 15000);
+      const res = await fetch(base + '/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.key },
+        signal: ctrl.signal,
+        body: JSON.stringify({ model: 'agnes-2.0-flash', messages: [{ role: 'user', content: 'ping' }], temperature: 0, max_tokens: 1 })
+      });
+      clearTimeout(to);
+      if (res.ok) { setStat('<span class="api-stat-ok">✅ 连通正常（Key 有效，可直接 AI 整理）</span>'); speak('连通正常'); toast('Agnes 连通正常'); }
+      else { setStat('<span class="api-stat-bad">❌ 失败：HTTP ' + res.status + (res.status === 401 ? '（Key 无效或已失效）' : '') + '</span>'); toast('Agnes 连通失败：HTTP ' + res.status); }
+    } else if (id === 'xf') {
+      const c = xfCreds();
+      if (!c.appid) { setStat('<span class="api-stat-bad">❌ 未配置凭证（无内置默认且未填写三件套）</span>'); return; }
+      const url = await iflytekAuthUrl();
+      const ok = await new Promise((resolve) => {
+        let done = false; let ws;
+        try { ws = new WebSocket(url); } catch (e) { resolve(false); return; }
+        const to2 = setTimeout(() => { if (!done) { done = true; try { ws.close(); } catch (e) {} resolve(false); } }, 10000);
+        ws.onopen = () => { done = true; clearTimeout(to2); try { ws.close(); } catch (e) {} resolve(true); };
+        ws.onerror = () => { if (!done) { done = true; clearTimeout(to2); resolve(false); } };
+      });
+      if (ok) { setStat('<span class="api-stat-ok">✅ 连通正常（WebSocket 握手成功，可语音听写）</span>'); speak('语音连通正常'); toast('讯飞连通正常'); }
+      else { setStat('<span class="api-stat-bad">❌ 连接失败（检查凭证或网络）</span>'); toast('讯飞连通失败'); }
+    }
+  } catch (e) {
+    const msg = (e && e.name === 'AbortError') ? '超时（15 秒无响应）' : ('失败：' + (e && e.message || e));
+    setStat('<span class="api-stat-bad">❌ ' + msg + '</span>');
+    toast('连通测试' + msg);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🧪 测试连通'; }
+  }
+}
 /* 仪器/校准快捷入口（康腾线） */
 function contactServiceFirstInstrument() {
   const insts = load(STORE.instruments, []);
@@ -1128,6 +1180,7 @@ function toggleVoice() {
    ============================================================ */
 function openExpSheet(id) {
   editingExpId = id || null;
+  expOrigin = id ? 'edit' : 'new'; /* 模板生成流程会在调用后覆盖为 'template' */
   currentSteps = [];
   const exp = id ? load(STORE.exp, []).find((e) => e.id === id) : null;
   if (exp) currentSteps = JSON.parse(JSON.stringify(exp.steps || []));
@@ -1135,7 +1188,8 @@ function openExpSheet(id) {
   const raw = exp ? exp.raw : '';
   const operator = exp ? exp.operator : '实验员';
 
-  let html = `<div class="grabber"></div><h2>${exp ? '实验记录' : '新建实验记录'}</h2>
+  let html = `<div class="grabber"></div>
+    <div class="sheet-head"><button class="back-btn" onclick="expBack()">← 返回</button><h2>${exp ? '实验记录' : '新建实验记录'}</h2></div>
     <p class="hint">点击麦克风说话，文字自动进入“原始记录”；可再次点击麦克风继续补充。单次录音最长 60 秒（讯飞限制）。</p>
     <div class="field">
       <label>原始记录（可语音或手填，支持多次追加）</label>
@@ -1150,21 +1204,28 @@ function openExpSheet(id) {
     </div>
     <div class="field"><label>标题</label><input id="expTitle" value="${esc(title)}" placeholder="如：外泌体浓缩"></div>
     <div class="field"><label>记录人</label><input id="expOp" value="${esc(operator)}" placeholder="操作人"></div>
+    <div class="srow" style="gap:10px">
+      <div class="field" style="flex:1"><label>样本名（对应模板 {{样本名}}）</label><input id="expSample" value="${esc(exp && exp.sample || '')}" placeholder="如：外泌体样本"></div>
+      <div class="field" style="flex:1"><label>批号（对应模板 {{批号}}）</label><input id="expLot" value="${esc(exp && exp.lot || '')}" placeholder="如：EV-2607"></div>
+    </div>
     <div class="field"><label>标签（逗号分隔，便于筛选，如：外泌体, 纯化）</label><input id="expTags" value="${esc((exp && exp.tags || []).join(', '))}" placeholder="选填"></div>
     <div class="btn-row" style="margin-top:6px">
       <button class="btn secondary" id="structureBtn">整理为结构化步骤</button>
       <button class="btn ghost" id="aiBtn" onclick="aiStructure()">🤖 AI 智能整理</button>
     </div>
     <div id="stepList" style="margin-top:14px"></div>
-    <div class="btn-row" style="margin-top:16px">
-      ${exp ? '<button class="btn danger" onclick="deleteExp()">删除</button>' : ''}
+    <div class="sheet-actions">
+      ${exp ? '<button class="btn danger" onclick="deleteExp()">删除</button>' : '<button class="btn ghost" onclick="saveExpAsTemplate()">存为模板</button>'}
       <button class="btn" onclick="saveExp()">保存记录</button>
-    </div>
-    ${exp ? '' : '<button class="btn ghost" style="margin-top:10px" onclick="saveExpAsTemplate()">存为模板</button>'}`;
+    </div>`;
 
   openSheet(html);
   if (exp) renderSteps();
   bindMic();
+}
+function expBack() {
+  if (expOrigin === 'template') { expOrigin = ''; openTemplates(); }
+  else closeSheet();
 }
 function renderSteps() {
   const box = $('stepList');
@@ -1210,8 +1271,9 @@ function bindWebSpeech(btn) {
       const t = $('expRaw');
       t.value = t.value ? t.value + (t.value.endsWith('；') || t.value.endsWith(';') || t.value.endsWith('。') ? '' : '；') + text : text;
       t.scrollTop = t.scrollHeight;
+      toast('✅ 语音识别完成，已写入记录');
     };
-    rec.onerror = () => { toast('语音识别失败，请手动输入'); };
+    rec.onerror = () => { toast('❌ 语音识别失败，请手动输入'); };
     rec.onend = () => { rec._on = false; btn.classList.remove('recording'); $('vlabel').textContent = '点击说话，自动转为记录'; const t = $('expRaw'); if (t) t.classList.remove('listening'); if (rec && !rec._on) speak('已记录'); setTimeout(aiStructure, 300); };
     try { rec.start(); } catch (e) { rec._on = false; btn.classList.remove('recording'); }
   };
@@ -1246,6 +1308,8 @@ function agnesReady() {
   return !!(st.agnesKey && st.agnesKey.trim()) || !!EMBED.agnes;
 }
 let voiceOn = getSettings().voiceOn;
+let agnesSample = '', agnesLot = '';
+let expOrigin = ''; /* 标记实验记录页来源：'template' 表示从模板生成进入 */
 function speak(text) {
   if (!voiceOn || !window.speechSynthesis) return;
   try { const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-CN'; u.rate = 1.05; u.pitch = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
@@ -1289,10 +1353,10 @@ function bindIflytek(btn) {
     t.value = v; t.scrollTop = t.scrollHeight;
   }
   btn.onclick = async () => {
-    if (sending) { stop(); return; }
+    if (sending) { stop('ok'); return; }
     sending = true; seg = ''; segBase = (ta() ? ta().value : '');
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 } }); }
-    catch (e) { sending = false; toast('无法访问麦克风，请检查授权'); return; }
+    catch (e) { sending = false; toast('❌ 无法访问麦克风，请检查授权'); return; }
     const t0 = ta(); if (t0) t0.classList.add('listening');
     const AC = window.AudioContext || window.webkitAudioContext;
     ctx = new AC();
@@ -1303,16 +1367,16 @@ function bindIflytek(btn) {
     btn.classList.add('recording');
     $('vlabel').textContent = '正在聆听…再次点击结束';
     speak('请开始说话');
-    maxTimer = setTimeout(() => { speak('已到时长上限'); toast('已达讯飞单次上限 60 秒，已自动停止'); stop(); }, 58000);
+    maxTimer = setTimeout(() => { toast('⏱️ 已达讯飞单次上限 60 秒，已自动停止'); stop('auto'); }, 58000);
     try {
       ws = new WebSocket(await iflytekAuthUrl());
     }
-    catch (e) { toast('讯飞连接失败'); stop(); return; }
+    catch (e) { toast('❌ 讯飞连接失败'); stop('error'); return; }
     ws.onopen = () => { timer = setInterval(flush, 40); };
     ws.onmessage = (ev) => {
       try {
         const j = JSON.parse(ev.data);
-        if (j.code !== 0) { toast('讯飞错误 ' + j.code + ' ' + j.message); stop(); return; }
+        if (j.code !== 0) { toast('❌ 讯飞错误 ' + j.code + ' ' + j.message); stop('error'); return; }
         const r = j.data && j.data.result;
         if (r && r.ws) {
           let t = ''; r.ws.forEach((w) => w.cw && w.cw.forEach((c) => t += c.w));
@@ -1320,7 +1384,7 @@ function bindIflytek(btn) {
         }
       } catch (e) {}
     };
-    ws.onerror = () => { toast('讯飞连接异常'); stop(); };
+    ws.onerror = () => { toast('❌ 讯飞连接异常'); stop('error'); };
   };
   function flush() {
     if (!buf.length) return;
@@ -1337,16 +1401,21 @@ function bindIflytek(btn) {
     if (status === 0) { const c = xfCreds(); frame.common = { app_id: c.appid }; frame.business = { language: 'zh_cn', domain: 'iat', accent: 'mandarin', vad_eos: 2000 }; }
     if (ws && ws.readyState === 1) ws.send(JSON.stringify(frame));
   }
-  function stop() {
+  function stop(reason) {
     try { if (timer) clearInterval(timer); } catch (e) {}
     try { if (maxTimer) clearTimeout(maxTimer); } catch (e) {}
     try { if (first === false && ws && ws.readyState === 1) ws.send(JSON.stringify({ data: { status: 2 } })); } catch (e) {}
     try { if (ws) ws.close(); } catch (e) {}
     try { if (proc) proc.disconnect(); if (stream) stream.getTracks().forEach((t) => t.stop()); } catch (e) {}
     if (ctx) ctx.close();
+    const gotText = !!(seg && seg.trim());
     sending = false; first = true; buf = [];
     const t = ta(); if (t) t.classList.remove('listening');
-    btn.classList.remove('recording'); $('vlabel').textContent = '点击说话，自动转为记录'; speak('已记录');
+    btn.classList.remove('recording'); $('vlabel').textContent = '点击说话，自动转为记录';
+    if (reason === 'ok') {
+      if (gotText) toast('✅ 语音识别完成，已写入记录');
+      if (voiceOn) speak('已记录');
+    }
     setTimeout(aiStructure, 300);
   }
 }
@@ -1354,15 +1423,17 @@ function saveExp() {
   const title = $('expTitle').value.trim() || '未命名实验';
   const raw = $('expRaw').value.trim();
   const operator = $('expOp').value.trim() || '实验员';
+  const sample = $('expSample') ? $('expSample').value.trim() : '';
+  const lot = $('expLot') ? $('expLot').value.trim() : '';
   const tags = ($('expTags').value || '').split(/[,，]/).map((s) => s.trim()).filter(Boolean);
   if (!raw) { toast('请先填写或语音记录内容'); return; }
   if (!currentSteps.length) currentSteps = structure(raw);
   const exps = load(STORE.exp, []);
   if (editingExpId) {
     const i = exps.findIndex((e) => e.id === editingExpId);
-    exps[i] = { ...exps[i], title, raw, operator, tags, steps: currentSteps };
+    exps[i] = { ...exps[i], title, raw, operator, sample, lot, tags, steps: currentSteps };
   } else {
-    exps.push({ id: uid('e'), title, raw, operator, tags, createdAt: nowISO(), steps: currentSteps });
+    exps.push({ id: uid('e'), title, raw, operator, sample, lot, tags, createdAt: nowISO(), steps: currentSteps });
   }
   save(STORE.exp, exps); closeSheet(); toast('已保存'); renderAll();
 }
@@ -2117,9 +2188,9 @@ function deleteResult(id) {
 function openTemplates() {
   const tpls = load(STORE.templates, []);
   let html = `<div class="grabber"></div>
-    <div class="sheet-head"><button class="back-btn" onclick="closeSheet()">← 返回</button><h2>实验模板</h2></div>
+    <div class="sheet-head"><h2>实验模板</h2></div>
     <p class="hint">用常用 protocol 一键新建记录；也可在新建记录时点“存为模板”。</p>`;
-  if (!tpls.length) html += emptyState('还没有模板', '在新建实验记录时点“存为模板”');
+  if (!tpls.length) html += emptyState('还没有模板', '点右下角“＋”新建模板');
   else {
     const order = ['细胞培养', '细胞功能', '细胞转染', '免疫荧光', '蛋白', '分子', 'PCR', '病理组织', '其他'];
     const groups = {};
@@ -2133,7 +2204,7 @@ function openTemplates() {
       });
     });
   }
-  html += `<button class="btn" style="margin-top:8px" onclick="newTemplate()">+ 新建模板</button>`;
+  html += `<div class="sheet-fab-wrap"><button class="sheet-fab" onclick="newTemplate()" title="新建模板">＋</button></div>`;
   openSheet(html);
 }
 function extractTokens(raw) {
@@ -2167,7 +2238,8 @@ function useTemplate(id) {
     <div class="sheet-head"><button class="back-btn" onclick="openTemplates()">← 返回模板</button><h2>套用模板：${esc(t.title)}</h2></div>
     <p class="hint">填入变量，生成带时间线的实验记录。</p>
     <p class="warn-preset">⚠ 此为常规实验模板，步骤来源于公开 protocol，请自行确认后使用。</p>`;
-  toks.forEach((tk, i) => { html += `<div class="field"><label>${esc(tk)}</label><input id="tv_${i}" placeholder="填入${esc(tk)}"></div>`; });
+  const prefill = { '样本名': agnesSample, '批号': agnesLot };
+  toks.forEach((tk, i) => { const v = prefill[tk] || ''; html += `<div class="field"><label>${esc(tk)}</label><input id="tv_${i}" value="${esc(v)}" placeholder="填入${esc(tk)}"${v ? ' data-auto="1"' : ''}></div>`; });
   html += `<div class="field"><label>标题</label><input id="tfTitle" value="${esc(t.title)}"></div>`;
   html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
   html += `<div class="field"><label>起始时间（可选，用于重排时间线）</label><input id="tfStart" type="time"></div>`;
@@ -2204,6 +2276,7 @@ function generateFromTemplate(id) {
   let inst = applyTokens(t.raw, map); inst = shiftTimes(inst, $('tfStart') ? $('tfStart').value : '');
   closeSheet();
   openExpSheet(null);
+  expOrigin = 'template'; /* 标记来源：返回时回到模板列表 */
   const ta = $('expRaw'); if (ta) ta.value = inst;
   const ti = $('expTitle'); if (ti) ti.value = ($('tfTitle') ? $('tfTitle').value.trim() : '') || t.title;
   const op = $('expOp'); if (op) op.value = ($('tfOp') ? $('tfOp').value.trim() : '') || '实验员';
@@ -2411,7 +2484,7 @@ function revertWeekly() { weeklyText = weeklyRaw; renderWeeklyOut('原文', week
 function stripFence(s) { s = (s || '').trim(); const m = s.match(/^```(?:markdown|md|text)?\s*([\s\S]*?)\s*```$/i); return m ? m[1].trim() : s; }
 async function aiOptimizeWeekly() {
   if (!weeklyRaw) { toast('请先生成周报'); return; }
-  if (!agnesReady()) { toast('请先在「设置」填写 Agnes Key 或部署代理'); return; }
+  if (!agnesReady()) { toast('请先在「设置 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
   const btn = $('aiOptWeekly');
   if (btn) { btn.disabled = true; btn.textContent = 'AI 优化中…'; }
   try {
@@ -2436,10 +2509,10 @@ async function aiOptimizeWeekly() {
     if (!content) throw new Error('empty');
     weeklyText = content;
     renderWeeklyOut('AI 已优化', content, true);
-    toast('AI 已优化'); if (voiceOn) speak('AI 已优化');
+    toast('✅ AI 已优化周报'); if (voiceOn) speak('AI 已优化');
   } catch (e) {
-    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（代理/网络超时）' : ('AI 优化失败：' + (e.message || e));
-    toast(msg + '，请检查 Agnes 代理或 Key');
+    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（网络超时）' : ('AI 优化失败：' + (e.message || e));
+    toast('❌ ' + msg + '，请检查网络或在「设置」重测连通');
     console.warn('[Agnes] 周报优化失败：', e);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🤖 AI 优化'; }
@@ -2533,18 +2606,21 @@ async function callAgnesParse(raw) {
 
 1. 先整体理解本次实验的目的与流程；
 2. 将记录**总结归纳**为条理清晰、可复现的实验步骤序列：去除口语冗余、补全被省略的动作、合并同类操作、按时间或逻辑顺序排列；不要把每句话原样当成一步，也不要遗漏关键操作；
-3. 把能识别的信息分别填入下方 JSON 的对应字段。
+3. 识别本次实验的「代表性样本名」与「批号/货号」——它们正是实验模板里常用留空占位符 {{样本名}}、{{批号}} 所指的信息。若整条记录围绕同一样本/批号，请填到顶层 sample / lot 字段；若各步骤样本或批号不同，则只在对应 step 内的 material / lot 填写，顶层留空字符串；
+4. 把能识别的信息分别填入下方 JSON 的对应字段。
 
 只输出 JSON（不要解释、不要 Markdown 代码块），结构如下：
 {
   "title": "一句话准确概括本次实验，如「外泌体超滤浓缩」",
   "operator": "记录人姓名；原始记录未提及则填空字符串",
+  "sample": "本次实验的代表性样本名，对应模板留空 {{样本名}}，如「外泌体样本」「菌液 pET28a」；若各步样本不同则留空字符串",
+  "lot": "本次实验的代表性批号/货号，对应模板留空 {{批号}}，如 EV-2607；若各步批号不同则留空字符串",
   "steps": [
     {
       "time": "步骤发生时刻，形如 HH:MM；无则空",
       "action": "本步核心动作，规范为动词，如：取/加入/加/离心/上样/收集/孵育/过滤/浓缩/稀释/重悬/转移/平衡/洗脱/检测/配制/涡旋/混匀；可留空",
       "material": "操作对象或物料，如「外泌体样本」「超滤管」「PBS」；无则空",
-      "lot": "批号/货号，如 EV-2607；无则空",
+      "lot": "本步批号/货号，如 EV-2607；无则空",
       "amount": "用量数值，如 2 / 4000 / 10；无则空",
       "unit": "单位，须与 amount 配对，如 mL / g / L / μL / 支 / 个 / 孔 / min / ℃ / rpm / ×g；无则空",
       "param": "关键条件参数，如「4000×g 离心 10 min」「37℃ 孵育 30 min」「0.22 μm 过滤」；无则空"
@@ -2579,6 +2655,9 @@ function normalizeStep(s) {
 function applyAgnesResult(data) {
   if (data.title) { const t = $('expTitle'); if (t) t.value = data.title; }
   if (data.operator) { const o = $('expOp'); if (o) o.value = data.operator; }
+  // 顶层 sample / lot：对应模板留空 {{样本名}} / {{批号}}，回填到输入框并缓存，便于套用模板时自动带入
+  if (data.sample != null) { const sm = $('expSample'); if (sm) sm.value = data.sample; if (data.sample) agnesSample = data.sample; }
+  if (data.lot != null) { const lt = $('expLot'); if (lt) lt.value = data.lot; if (data.lot) agnesLot = data.lot; }
   if (Array.isArray(data.steps) && data.steps.length) {
     currentSteps = data.steps.map(normalizeStep).filter((s) => s.time || s.action || s.material || s.lot || s.amount || s.param);
     renderSteps();
@@ -2587,22 +2666,23 @@ function applyAgnesResult(data) {
 async function aiStructure() {
   const raw = $('expRaw') ? $('expRaw').value.trim() : '';
   if (!raw) { toast('请先记录或输入内容'); return; }
-  if (!agnesReady()) { toast('请先在「设置」填写 Agnes Key'); return; }
+  if (!agnesReady()) { toast('请先在「设置 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
   const aiBtn = $('aiBtn'); const oldTxt = aiBtn ? aiBtn.textContent : '';
   if (aiBtn) { aiBtn.disabled = true; aiBtn.textContent = 'AI 整理中…'; }
   try {
     const data = await callAgnesParse(raw);
     if (data && (data.title || (Array.isArray(data.steps) && data.steps.length))) {
       applyAgnesResult(data);
-      toast('AI 已整理'); if (voiceOn) speak('AI 已整理');
+      const n = Array.isArray(data.steps) ? data.steps.length : 0;
+      toast('✅ AI 已整理' + (n ? '（' + n + ' 个步骤）' : '')); if (voiceOn) speak('AI 已整理');
     } else {
       currentSteps = structure(raw); renderSteps();
-      toast('AI 未返回有效结构，已用本地整理');
+      toast('⚠️ AI 未返回有效结构，已用本地整理');
     }
   } catch (e) {
     currentSteps = structure(raw); renderSteps();
-    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（代理/网络超时）' : ('AI 整理失败：' + (e.message || e));
-    toast(msg + '，已用本地整理');
+    const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（网络超时）' : ('AI 整理失败：' + (e.message || e));
+    toast('❌ ' + msg + '，已用本地整理');
     console.warn('[Agnes] 整理失败：', e);
   } finally {
     if (aiBtn) { aiBtn.disabled = false; aiBtn.textContent = oldTxt || '🤖 AI 智能整理'; }

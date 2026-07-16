@@ -110,6 +110,10 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .api-row-title{font-size:15px;font-weight:600;color:var(--ink)}
 .api-caret{font-size:18px;color:var(--muted);transition:transform .2s ease;line-height:1}
 .api-detail{background:rgba(255,255,255,.42);border-radius:var(--radius-sm);padding:12px 14px 14px;margin:-2px 0 10px;box-shadow:var(--glass-shadow)}
+.api-stat{margin-top:10px;font-size:13px;line-height:1.5;min-height:18px}
+.api-stat .api-stat-ok{color:#2a8;font-weight:600}
+.api-stat .api-stat-bad{color:#d33;font-weight:600}
+.api-stat .api-stat-prog{color:var(--muted)}
 
 .content{padding:14px 16px calc(108px + var(--safe-b));min-height:70vh}
 .section-title{font-size:13px;font-weight:600;color:var(--muted);margin:18px 6px 10px;display:flex;justify-content:space-between;align-items:center}
@@ -309,6 +313,16 @@ textarea{min-height:96px;resize:vertical}
 .back-btn{background:none;border:0;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;
   font-family:inherit;padding:5px 8px 5px 2px;border-radius:8px;white-space:nowrap;line-height:1}
 .back-btn:active{background:rgba(91,122,255,.1)}
+
+/* 悬浮操作：模板页新建 FAB / 实验记录页底部操作栏 */
+.sheet-fab-wrap{position:sticky;bottom:14px;display:flex;justify-content:flex-end;z-index:6;margin-top:14px}
+.sheet-fab{width:54px;height:54px;border-radius:50%;border:0;background:linear-gradient(135deg,var(--blue),#7a5cff);color:#fff;font-size:28px;font-weight:300;line-height:1;
+  box-shadow:0 8px 22px rgba(94,87,254,.35),0 2px 6px rgba(0,0,0,.15);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  transition:transform .2s cubic-bezier(.32,.72,0,1)}
+.sheet-fab:active{transform:scale(.92);transition-duration:0s}
+.sheet-actions{position:sticky;bottom:0;display:flex;gap:10px;justify-content:flex-end;align-items:center;z-index:6;margin-top:16px;
+  padding:10px 0 4px;background:linear-gradient(to top,var(--glass-strong),rgba(255,255,255,.55) 70%,transparent)}
+.sheet-actions .btn{flex:0 1 auto}
 
 /* 分段控制 */
 .seg{display:flex;background:rgba(255,255,255,.45);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);

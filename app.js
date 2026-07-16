@@ -107,7 +107,7 @@ const SUPPLIERS = {
     audience: '科研用户', tagline: '科研试剂耗材 · 实验老师一站对接',
     contact: '农丽萍', phone: '18688470610', phoneTel: 'tel://18688470610',
     email: 'anissa.nong@kangtengbio.com', website: 'https://www.kangtengbio.com',
-    wechatQr: 'sidakang-qr.png',
+    wechatQr: 'wechat-qr.png',
     brandText: '代理品牌：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Biosharp · Nest · Axygen · 义翘神州 · Texwipe 等',
     equipmentText: ''
   },
@@ -116,7 +116,7 @@ const SUPPLIERS = {
     audience: '企业用户', tagline: '生物制药工艺链 · 研发到放行一站搞定',
     contact: '张经理', phone: '189-2226-6118', phoneTel: 'tel://18922266118',
     email: 'zhangyongsheng@kangtengbio.com', website: 'https://www.kangtengbio.com',
-    wechatQr: 'wechat-qr.png',
+    wechatQr: 'kangteng-qr.png',
     brandText: '授权品牌：Lonza龙沙 · 迈邦 · 楚天微球 · 圣戈班 · 迈博瑞 · 贝兰伯 · BioLegend · Applikon｜优势代理：Thermo · Sigma · MCE · Bio-RAD · NEB · Abcam · 百普赛斯 · Stemcell · Solarbio · Nest 等',
     equipmentText: '仪器设备：中科都菱冰箱(2-8℃/-86℃) · 液氮罐 · 离心机',
     article: 'https://mp.weixin.qq.com/s/vZjuDG_NfYHbIxeirysBFA'

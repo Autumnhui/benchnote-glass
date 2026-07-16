@@ -1748,6 +1748,78 @@ function closeSheet() { $('sheet').classList.remove('show'); $('sheetBackdrop').
 function openModal(html) { $('modal').innerHTML = html; $('modalBackdrop').classList.add('show'); $('modal').classList.add('show'); }
 function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').classList.remove('show'); }
 
+/* ---------------- Apple 流体交互：Sheet 下滑拖拽关闭 ----------------
+   仅从顶部抓手(.grabber)起拖；拖拽中 1:1 跟手、向上橡皮筋不可越顶；
+   释放按「速度接力 + 位移阈值」决定关闭或回弹；settle 用 rAF 半隐式欧拉
+   弹簧，释放途中再次抓住可立即中断（present 值续接），符合可中断原则。
+------------------------------------------------------------------- */
+(function () {
+  const sheet = document.getElementById('sheet');
+  const bd = document.getElementById('sheetBackdrop');
+  if (!sheet || !bd) return;
+  const VH = () => sheet.offsetHeight || Math.round(window.innerHeight * 0.9);
+  let drag = null;   // {startY, startTy, lastY, lastT, vy, moved}
+  let raf = 0;
+
+  function rubberband(o, dim, constant) { constant = constant || 0.55; return (o * dim * constant) / (dim + constant * Math.abs(o)); }
+  function curTy() {
+    const t = getComputedStyle(sheet).transform;
+    if (t && t !== 'none') { const m = t.match(/matrix\(([^)]+)\)/); if (m) return parseFloat(m[1].split(',')[5]); }
+    return sheet.classList.contains('show') ? 0 : VH();
+  }
+  function onDown(e) {
+    if (!sheet.classList.contains('show')) return;
+    if (!e.target.closest('.grabber')) return;
+    cancelAnimationFrame(raf);
+    e.preventDefault();
+    try { sheet.setPointerCapture(e.pointerId); } catch (_) {}
+    sheet.style.transition = 'none'; bd.style.transition = 'none';
+    drag = { startY: e.clientY, startTy: curTy(), lastY: e.clientY, lastT: performance.now(), vy: 0, moved: false };
+  }
+  function onMove(e) {
+    if (!drag) return;
+    const dy = e.clientY - drag.startY;
+    if (Math.abs(dy) > 4) drag.moved = true;
+    const h = VH();
+    let ty = drag.startTy + dy;
+    if (ty < 0) ty = -rubberband(-ty, h);                 // 向上拖：橡皮筋，不可越过顶部
+    sheet.style.transform = 'translate(-50%,' + ty + 'px)';
+    bd.style.opacity = Math.max(0, 1 - ty / h);
+    const now = performance.now(), dt = now - drag.lastT;
+    if (dt > 0) { drag.vy = (e.clientY - drag.lastY) / dt * 1000; drag.lastY = e.clientY; drag.lastT = now; }
+  }
+  function onUp() {
+    if (!drag) return;
+    const h = VH(), ty = curTy(), vy = drag.vy;
+    drag = null;
+    const dismiss = (vy > 550 && ty > 0) || ty > h * 0.42;  // 快速下甩 或 拖过 42% → 关闭
+    settle(dismiss ? h : 0, vy);
+  }
+  function settle(target, vy) {
+    let x = curTy(), v = vy || 0, k = 200, c = (target === 0 ? 26 : 22), last = performance.now();
+    function step(now) {
+      let dt = (now - last) / 1000; last = now; if (!(dt > 0)) dt = 1 / 60; if (dt > 1 / 30) dt = 1 / 30;
+      const a = -k * (x - target) - c * v; v += a * dt; x += v * dt;   // 半隐式欧拉弹簧
+      const h = VH();
+      if (Math.abs(x - target) < 0.5 && Math.abs(v) < 0.5) {
+        x = target;
+        sheet.style.transform = ''; bd.style.opacity = ''; bd.style.transition = ''; sheet.style.transition = '';
+        if (target !== 0) { closeSheet(); if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_) {} } }
+        return;
+      }
+      sheet.style.transform = 'translate(-50%,' + x + 'px)';
+      bd.style.opacity = Math.max(0, 1 - x / h);
+      raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+  }
+  sheet.addEventListener('pointerdown', onDown);
+  sheet.addEventListener('pointermove', onMove);
+  sheet.addEventListener('pointerup', onUp);
+  sheet.addEventListener('pointercancel', onUp);
+  sheet.addEventListener('lostpointercapture', onUp);
+})();
+
 /* ---------------- 事件绑定 ---------------- */
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchView(t.dataset.view)));
 $('fab').addEventListener('click', () => {

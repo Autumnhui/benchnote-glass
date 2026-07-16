@@ -47,7 +47,7 @@ html,body{margin:0;padding:0}
 /* 环境光晕：让玻璃有内容可折射 */
 body{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Helvetica,Arial,sans-serif;
-  color:var(--ink);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5;
+  color:var(--ink);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5;font-optical-sizing:auto;
   overscroll-behavior-y:none;
   min-height:100vh;
   background:
@@ -122,10 +122,10 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
 .quick .q{background:var(--glass);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border-radius:var(--radius-sm);box-shadow:var(--glass-shadow);padding:12px 6px;text-align:center;cursor:pointer;
-  transition:transform .12s;position:relative}
+  transition:transform .26s cubic-bezier(.32,.72,0,1);position:relative}
 .quick .q::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--edge);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
-.quick .q:active{transform:scale(.95)}
+.quick .q:active{transform:scale(.96);transition-duration:0s}
 .quick .q .qi{font-size:22px}
 .quick .q .qt{font-size:11.5px;color:var(--ink);margin-top:4px;line-height:1.3}
 
@@ -134,8 +134,8 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
   border-radius:var(--radius);box-shadow:var(--glass-shadow);margin-bottom:12px;padding:16px;position:relative}
 .card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--edge);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
-.card.tap{cursor:pointer;transition:transform .12s ease}
-.card.tap:active{transform:scale(.985)}
+.card.tap{cursor:pointer;transition:transform .26s cubic-bezier(.32,.72,0,1)}
+.card.tap:active{transform:scale(.985);transition-duration:0s}
 .card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .card h3{margin:0;font-size:16px;font-weight:600}
 .card .meta{font-size:12px;color:var(--muted);margin-top:4px}
@@ -174,9 +174,9 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
   color:#fff;
   background:var(--accent);
   box-shadow:0 12px 28px rgba(94,87,254,.42), 0 1px 0 rgba(255,255,255,.45) inset;
-  transition:transform .12s ease}
+  transition:transform .26s cubic-bezier(.32,.72,0,1)}
 .fab::after{content:"";position:absolute;top:6px;left:14px;width:18px;height:10px;border-radius:10px;background:rgba(255,255,255,.45);filter:blur(2px)}
-.fab:active{transform:translateX(-50%) scale(.94)}
+.fab:active{transform:translateX(-50%) scale(.94);transition-duration:0s}
 .fab.hidden{display:none}
 
 /* sheet */
@@ -185,17 +185,18 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:100%;max-width:480px;z-index:41;
   background:var(--glass-strong);backdrop-filter:var(--glass-blur-strong);-webkit-backdrop-filter:var(--glass-blur-strong);
   border-radius:30px 30px 0 0;padding:8px 16px calc(28px + var(--safe-b));
-  max-height:92vh;overflow-y:auto;transition:transform .32s cubic-bezier(.32,.72,0,1);
+  max-height:92vh;overflow-y:auto;transition:transform .32s cubic-bezier(.32,.72,0,1);will-change:transform;
   box-shadow:var(--glass-shadow-lg), 0 0 0 1px rgba(255,255,255,.6), 0 0 0 2px rgba(94,87,254,.10), 0 1px 0 rgba(255,255,255,.6) inset}
 .sheet.show{transform:translate(-50%,0)}
-.sheet .grabber{width:36px;height:5px;border-radius:3px;background:rgba(120,120,130,.4);margin:8px auto 12px}
+.sheet .grabber{width:36px;height:5px;border-radius:3px;background:rgba(120,120,130,.4);margin:8px auto 12px;touch-action:none;cursor:grab}
+.sheet .grabber:active{cursor:grabbing}
 .sheet h2{margin:0 0 4px;font-size:20px;font-weight:700}
 .sheet .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
 
 /* modal */
 .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);width:90%;max-width:420px;z-index:41;
   background:var(--glass-strong);backdrop-filter:var(--glass-blur-strong);-webkit-backdrop-filter:var(--glass-blur-strong);
-  border-radius:26px;padding:20px;max-height:82vh;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;
+  border-radius:26px;padding:20px;max-height:82vh;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;will-change:transform,opacity;
   box-shadow:var(--glass-shadow-lg), 0 0 0 1px rgba(255,255,255,.6), 0 0 0 2px rgba(94,87,254,.10), 0 1px 0 rgba(255,255,255,.6) inset}
 .modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
 .modal h2{margin:0 0 12px;font-size:19px;font-weight:700}
@@ -213,7 +214,8 @@ textarea{min-height:96px;resize:vertical}
 .btn{width:100%;border:0;border-radius:var(--radius-sm);padding:14px;font-size:16px;font-weight:600;cursor:pointer;color:#fff;
   background:var(--accent);
   box-shadow:0 10px 24px rgba(94,87,254,.34), 0 1px 0 rgba(255,255,255,.35) inset;position:relative}
-.btn:active{transform:scale(.985)}
+.btn{transition:transform .26s cubic-bezier(.32,.72,0,1)}
+.btn:active{transform:scale(.985);transition-duration:0s}
 .btn.secondary{background:rgba(255,255,255,.6);color:var(--ink);box-shadow:var(--glass-shadow), 0 1px 0 rgba(255,255,255,.6) inset;border:1px solid rgba(255,255,255,.6)}
 .btn.danger{background:var(--red-soft);color:var(--red);box-shadow:none}
 .btn.ghost{background:rgba(255,255,255,.5);color:var(--blue);border:1px solid rgba(0,113,227,.35);box-shadow:none}
@@ -246,10 +248,10 @@ textarea{min-height:96px;resize:vertical}
 .tool-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:8px}
 .tool{background:var(--glass);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border-radius:var(--radius);box-shadow:var(--glass-shadow);padding:16px;cursor:pointer;
-  display:flex;flex-direction:column;gap:6px;transition:transform .12s;position:relative}
+  display:flex;flex-direction:column;gap:6px;transition:transform .26s cubic-bezier(.32,.72,0,1);position:relative}
 .tool::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--edge);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
-.tool:active{transform:scale(.97)}
+.tool:active{transform:scale(.97);transition-duration:0s}
 .tool .ti{font-size:26px}
 .tool .tt{font-size:15px;font-weight:600}
 .tool .td{font-size:12px;color:var(--muted);line-height:1.4}
@@ -260,7 +262,8 @@ textarea{min-height:96px;resize:vertical}
   display:flex;align-items:center;gap:12px;cursor:pointer;position:relative}
 .list-row::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--edge);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
-.list-row:active{transform:scale(.99)}
+.list-row{transition:transform .25s cubic-bezier(.32,.72,0,1)}
+.list-row:active{transform:scale(.99);transition-duration:0s}
 .list-row .lr-main{flex:1;min-width:0}
 .list-row .lr-title{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .list-row .lr-sub{font-size:12px;color:var(--muted);margin-top:2px}
@@ -402,7 +405,9 @@ textarea{min-height:96px;resize:vertical}
 .kg-d{font-size:12px;color:var(--muted);line-height:1.5}
 .kg-d a{color:var(--blue);text-decoration:none}
 
-/* 减少动效偏好 */
+/* 减少动效偏好（Apple 规范：禁用滑动/缩放/脉冲等非必要动效，改为瞬时呈现，避免前庭刺激） */
 @media (prefers-reduced-motion:reduce){
   body::before,body::after{animation:none}
+  .sheet,.modal,.sheet-backdrop,.modal-backdrop,.fab,.btn,.quick .q,.card.tap,.tool,.list-row,.tab,.tab svg,.switch,.switch::after,.mic.recording,.timer-presets .p,.chip,.voice .vtoggle{transition-duration:0s !important;animation:none !important}
+  .toast{transition:opacity .2s ease}
 }

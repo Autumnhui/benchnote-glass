@@ -412,6 +412,42 @@ textarea{min-height:96px;resize:vertical}
 .kg-d{font-size:12px;color:var(--muted);line-height:1.5}
 .kg-d a{color:var(--blue);text-decoration:none}
 
+/* ---------------- 实验记录：标签 / 时间线 ---------------- */
+.tags-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tags-row .tag{font-size:10.5px}
+.tl-item{font-size:13px;line-height:1.7;color:var(--ink);padding:2px 0}
+.tl-item b{display:inline-block;min-width:46px;color:var(--accent-2);font-variant-numeric:tabular-nums}
+
+/* ---------------- 批量导入 / 填充 ---------------- */
+.batch-ta{width:100%;min-height:130px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);border-radius:14px;padding:12px 14px;font-size:14px;font-family:inherit;line-height:1.5;outline:none;resize:vertical;box-shadow:0 1px 0 rgba(255,255,255,.6) inset}
+.batch-ta:focus{border-color:var(--accent-2);box-shadow:0 0 0 3px rgba(94,87,254,.16), 0 1px 0 rgba(255,255,255,.6) inset}
+.batch-preview{margin-top:12px;background:rgba(255,255,255,.42);border-radius:14px;padding:10px 12px;max-height:190px;overflow:auto}
+.bp-count{font-size:13px;font-weight:600;color:var(--accent-2);margin-bottom:6px}
+.bp-row{font-size:12.5px;color:var(--ink);padding:3px 0;line-height:1.5}
+.bp-row.muted{color:var(--muted)}
+.bp-ok{color:var(--green)}
+.bp-skip{color:var(--orange)}
+.sel{flex:1;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.7);border-radius:12px;padding:11px 12px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;box-shadow:0 1px 0 rgba(255,255,255,.6) inset}
+.sel:focus{border-color:var(--accent-2)}
+
+/* ---------------- 试剂效期日历 ---------------- */
+.expcal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:12px}
+.expcal-head{text-align:center;font-size:11px;color:var(--muted);padding-bottom:2px}
+.expcal-cell{background:rgba(255,255,255,.5);border-radius:10px;padding:5px 4px;min-height:52px;display:flex;flex-direction:column;gap:2px;box-shadow:var(--glass-shadow);overflow:hidden}
+.expcal-cell.today{outline:2px solid var(--accent-2);outline-offset:-2px}
+.ec-num{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.expcal-cell.today .ec-num{color:var(--accent-2);font-weight:700}
+.ec-dot{font-size:9px;line-height:1.3;padding:1px 4px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.ec-dot.ok{background:var(--green-soft);color:var(--green)}
+.ec-dot.warn{background:var(--orange-soft);color:#c77700}
+.ec-dot.bad{background:var(--red-soft);color:var(--red)}
+.ec-more{font-size:9px;color:var(--muted);text-align:center}
+.ec-group{margin-top:6px}
+.ec-gtitle{font-size:13px;font-weight:700;margin:14px 4px 8px}
+.ec-gtitle.bad{color:var(--red)}
+.ec-gtitle.warn{color:#c77700}
+.ec-gtitle.info{color:var(--blue)}
+
 /* 减少动效偏好（Apple 规范：禁用滑动/缩放/脉冲等非必要动效，改为瞬时呈现，避免前庭刺激） */
 @media (prefers-reduced-motion:reduce){
   body::before,body::after{animation:none}

@@ -59,14 +59,40 @@ function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
 
 /* ---------------- 种子数据 ---------------- */
 const DEFAULT_TEMPLATES = [
-  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', raw: '14:00 取外泌体样本 2 mL 批号 EV-2607 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS' },
+  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS' },
   { id: 'tp2', title: '质粒小量提取', raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱' },
-  { id: 'tp3', title: '细胞传代', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶' }
+  { id: 'tp3', title: '细胞传代', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶' },
+  { id: 'tp4', title: '蛋白纯化（AKTA）', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL' }
 ];
 function ensureTemplateDefaults() {
   const t = load(STORE.templates, null);
   if (Array.isArray(t) && t.length) return;   // 用户已有模板则不覆盖
   save(STORE.templates, DEFAULT_TEMPLATES);
+}
+/* 模板变量迁移：把旧版默认模板升级为含 {{变量}} 的版本，并补齐 tp4（仅执行一次） */
+function migrateTemplates() {
+  if (localStorage.getItem('bench.tplMigrated')) return;
+  localStorage.setItem('bench.tplMigrated', '1');
+  const tpls = load(STORE.templates, []);
+  const tokenMap = {
+    tp1: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
+    tp2: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱',
+    tp3: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶'
+  };
+  let changed = false;
+  tpls.forEach((t) => { if (tokenMap[t.id] && !t.raw.includes('{{')) { t.raw = tokenMap[t.id]; changed = true; } });
+  if (!tpls.find((t) => t.id === 'tp4')) { tpls.push({ id: 'tp4', title: '蛋白纯化（AKTA）', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL' }); changed = true; }
+  if (changed) save(STORE.templates, tpls);
+}
+/* 实验记录标签迁移：给内置示例记录补上标签，便于筛选演示（仅执行一次） */
+function migrateExperiments() {
+  if (localStorage.getItem('bench.expMigrated')) return;
+  localStorage.setItem('bench.expMigrated', '1');
+  const exps = load(STORE.exp, []);
+  const map = { e1: ['外泌体', '纯化'], e2: ['层析', '纯化'] };
+  let changed = false;
+  exps.forEach((e) => { if (map[e.id] && !Array.isArray(e.tags)) { e.tags = map[e.id]; changed = true; } });
+  if (changed) save(STORE.exp, exps);
 }
 function seed() {
   if (localStorage.getItem(STORE.seeded)) return;
@@ -134,6 +160,9 @@ let editingExpId = null;
 let editingReagId = null;
 let currentSteps = [];
 let resultMetric = 'OD600 菌液';
+let expSearch = '';
+let expFilter = 'all';
+let expTag = '';
 
 /* ---------------- 工具 ---------------- */
 function nowISO() { return new Date().toISOString(); }
@@ -287,24 +316,54 @@ function renderOverview() {
 
 /* ---------------- 实验记录 ---------------- */
 function renderExperiments() {
-  const exps = load(STORE.exp, []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  let html = '<div class="section-title">全部记录</div>';
-  if (!exps.length) html += emptyState('还没有实验记录', '点下方 + 用语音或文字记录');
+  const exps = load(STORE.exp, []);
+  const allTags = [...new Set(exps.flatMap((e) => Array.isArray(e.tags) ? e.tags : []))];
+  let html = `<input class="search" id="expSearchInput" placeholder="搜索标题 / 内容 / 记录人 / 批号 / 标签" value="${esc(expSearch)}" oninput="onExpSearch(this.value)">`;
+  html += '<div class="chips">';
+  [['all', '全部'], ['week', '本周'], ['month', '本月']].forEach(([k, l]) => {
+    html += `<div class="chip ${expFilter === k ? 'active' : ''}" onclick="setExpFilter('${k}')">${l}</div>`;
+  });
+  allTags.forEach((t) => { html += `<div class="chip ${expTag === t ? 'active' : ''}" onclick="setExpTag('${esc(t)}')">#${esc(t)}</div>`; });
+  html += '</div>';
+  html += '<div id="expListInner"></div>';
+  $('view-experiments').innerHTML = html;
+  renderExpList();
+}
+function onExpSearch(v) { expSearch = v; renderExpList(); }
+function setExpFilter(f) { expFilter = f; renderExperiments(); }
+function setExpTag(t) { expTag = (expTag === t ? '' : t); renderExperiments(); }
+function renderExpList() {
+  const box = $('expListInner'); if (!box) return;
+  let exps = load(STORE.exp, []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (expSearch) {
+    const q = expSearch.toLowerCase();
+    exps = exps.filter((e) => (e.title + ' ' + (e.raw || '') + ' ' + (e.operator || '') + ' ' +
+      (e.steps || []).map((s) => (s.material || '') + ' ' + (s.lot || '')).join(' ') + ' ' +
+      (e.tags || []).join(' ')).toLowerCase().includes(q));
+  }
+  if (expFilter === 'week') { const w = Date.now() - 7 * 86400000; exps = exps.filter((e) => new Date(e.createdAt).getTime() >= w); }
+  if (expFilter === 'month') { const m = Date.now() - 30 * 86400000; exps = exps.filter((e) => new Date(e.createdAt).getTime() >= m); }
+  if (expTag) exps = exps.filter((e) => Array.isArray(e.tags) && e.tags.includes(expTag));
+  let html = `<div class="section-title">记录（${exps.length}）</div>`;
+  if (!exps.length) html += emptyState('没有匹配的记录', '调整筛选或点 + 新建');
   else {
     exps.forEach((e) => {
-      const lots = [...new Set(e.steps.map((s) => s.lot).filter(Boolean))];
+      const lots = [...new Set((e.steps || []).map((s) => s.lot).filter(Boolean))];
+      const tags = (e.tags || []).map((t) => `<span class="tag gray">#${esc(t)}</span>`).join(' ');
       html += `<div class="card tap" onclick="openExpSheet('${e.id}')">
         <div class="row1"><h3>${esc(e.title)}</h3><span class="tag gray">${fmtDate(e.createdAt)}</span></div>
-        <div class="meta">${e.steps.length} 个步骤${lots.length ? ' · 批号 ' + esc(lots.join('、')) : ''}</div>
+        <div class="meta">${(e.steps || []).length} 个步骤${lots.length ? ' · 批号 ' + esc(lots.join('、')) : ''}</div>
+        ${tags ? '<div class="tags-row">' + tags + '</div>' : ''}
         <div class="snippet">${esc(e.raw)}</div></div>`;
     });
   }
-  $('view-experiments').innerHTML = html;
+  box.innerHTML = html;
 }
 
 /* ---------------- 试剂 / 冻存 ---------------- */
 function renderReagents() {
   if (reagSeg === 'freezer') return renderFreezer();
+  if (reagSeg === 'calendar') return renderExpiryCalendar();
   const reags = load(STORE.reag, []);
   let list = reags.filter((r) => {
     if (reagSearch && !(r.name + r.lot + r.location).toLowerCase().includes(reagSearch.toLowerCase())) return false;
@@ -318,6 +377,7 @@ function renderReagents() {
   let html = `<div class="seg">
     <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
+    <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
   html += `<input class="search" id="reagSearch" placeholder="搜索名称 / 批号 / 位置" value="${esc(reagSearch)}" oninput="onReagSearch(this.value)">`;
   html += '<div class="chips">';
@@ -325,6 +385,7 @@ function renderReagents() {
     html += `<div class="chip ${reagFilter === k ? 'active' : ''}" onclick="setReagFilter('${k}')">${l}</div>`;
   });
   html += '</div>';
+  html += `<button class="btn secondary" style="margin-top:6px;width:100%" onclick="openReagBatch()">📥 批量导入试剂</button>`;
   if (!list.length) html += emptyState('没有符合条件的试剂', '调整筛选或点 + 添加');
   else {
     list.forEach((r) => {
@@ -342,6 +403,61 @@ function renderReagents() {
 function setReagSeg(s) { reagSeg = s; renderReagents(); setHeader(); }
 function setReagFilter(f) { reagFilter = f; renderReagents(); }
 function onReagSearch(v) { reagSearch = v; renderReagents(); }
+function renderExpiryCalendar() {
+  const reags = load(STORE.reag, []);
+  let html = `<div class="seg">
+    <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
+    <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
+    <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
+  </div>`;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dow = (today.getDay() + 6) % 7; // 周一=0
+  const start = new Date(today); start.setDate(today.getDate() - dow);
+  const dayMark = {};
+  reags.forEach((r) => { if (r.expiry && r.expiry !== '—') { (dayMark[r.expiry] = dayMark[r.expiry] || []).push(r); } });
+  const wd = ['一', '二', '三', '四', '五', '六', '日'];
+  html += '<div class="expcal">';
+  wd.forEach((w) => { html += `<div class="expcal-head">${w}</div>`; });
+  for (let i = 0; i < 35; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const isToday = d.getTime() === today.getTime();
+    const marks = dayMark[ds] || [];
+    let inner = `<div class="ec-num">${d.getDate()}</div>`;
+    marks.slice(0, 2).forEach((m) => { inner += `<div class="ec-dot ${reagStatus(m).key}" title="${esc(m.name)}">${esc(m.name.slice(0, 4))}</div>`; });
+    if (marks.length > 2) inner += `<div class="ec-more">+${marks.length - 2}</div>`;
+    html += `<div class="expcal-cell${isToday ? ' today' : ''}">${inner}</div>`;
+  }
+  html += '</div>';
+  const groups = [
+    ['已过期', (r) => daysUntil(r.expiry) < 0, 'bad'],
+    ['7 天内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && d <= 7; }, 'warn'],
+    ['30 天内到期', (r) => { const d = daysUntil(r.expiry); return d > 7 && d <= 30; }, 'info']
+  ];
+  html += '<div class="section-title">采购 / 处理清单</div>';
+  let any = false;
+  groups.forEach(([title, fn, cls]) => {
+    const list = reags.filter((r) => r.expiry && r.expiry !== '—' && fn(r));
+    if (list.length) {
+      any = true;
+      html += `<div class="ec-group"><div class="ec-gtitle ${cls}">${title}（${list.length}）</div>`;
+      list.sort((a, b) => daysUntil(a.expiry) - daysUntil(b.expiry)).forEach((r) => {
+        const d = daysUntil(r.expiry);
+        const dd = d < 0 ? `逾期${-d}天` : `剩${d}天`;
+        const tk = reagStatus(r).key;
+        const ico = { ok: 'g', warn: 'o', bad: 'r' }[tk];
+        html += `<div class="list-row" onclick="openReagSheet('${r.id}')"><div class="lr-ico ${ico}">⏳</div>
+          <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">批号 ${esc(r.lot)} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div></div>
+          <div class="lr-right"><span class="tag ${tk}">${dd}</span></div></div>`;
+      });
+      html += '</div>';
+    }
+  });
+  if (!any) html += emptyState('未来 30 天无到期试剂', '');
+  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
+  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:8px" onclick="openPurchase()">生成请购单（${needBuy.length}）</button>`;
+  $('view-reagents').innerHTML = html;
+}
 
 function renderFreezer() {
   const samples = load(STORE.samples, []);
@@ -350,10 +466,12 @@ function renderFreezer() {
   let html = `<div class="seg">
     <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
+    <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
   html += '<div class="chips">';
   boxes.forEach((b) => { html += `<div class="chip ${freezerBox === b ? 'active' : ''}" onclick="setFreezerBox('${b}')">${b}</div>`; });
   html += '</div>';
+  html += `<button class="btn secondary" style="margin-top:6px;width:100%" onclick="openFreezerBatch()">📥 批量填充本盒</button>`;
   const here = samples.filter((s) => s.box === freezerBox);
   const inBox = {};
   here.forEach((s) => { inBox[s.row + s.col] = s; });
@@ -487,6 +605,7 @@ function openExpSheet(id) {
     </div>
     <div class="field"><label>标题</label><input id="expTitle" value="${esc(title)}" placeholder="如：外泌体浓缩"></div>
     <div class="field"><label>记录人</label><input id="expOp" value="${esc(operator)}" placeholder="操作人"></div>
+    <div class="field"><label>标签（逗号分隔，便于筛选，如：外泌体, 纯化）</label><input id="expTags" value="${esc((exp && exp.tags || []).join(', '))}" placeholder="选填"></div>
     <div class="btn-row" style="margin-top:6px">
       <button class="btn secondary" id="structureBtn">整理为结构化步骤</button>
       <button class="btn ghost" id="aiBtn" onclick="aiStructure()">🤖 AI 智能整理</button>
@@ -691,14 +810,15 @@ function saveExp() {
   const title = $('expTitle').value.trim() || '未命名实验';
   const raw = $('expRaw').value.trim();
   const operator = $('expOp').value.trim() || '实验员';
+  const tags = ($('expTags').value || '').split(/[,，]/).map((s) => s.trim()).filter(Boolean);
   if (!raw) { toast('请先填写或语音记录内容'); return; }
   if (!currentSteps.length) currentSteps = structure(raw);
   const exps = load(STORE.exp, []);
   if (editingExpId) {
     const i = exps.findIndex((e) => e.id === editingExpId);
-    exps[i] = { ...exps[i], title, raw, operator, steps: currentSteps };
+    exps[i] = { ...exps[i], title, raw, operator, tags, steps: currentSteps };
   } else {
-    exps.push({ id: uid('e'), title, raw, operator, createdAt: nowISO(), steps: currentSteps });
+    exps.push({ id: uid('e'), title, raw, operator, tags, createdAt: nowISO(), steps: currentSteps });
   }
   save(STORE.exp, exps); closeSheet(); toast('已保存'); renderAll();
 }
@@ -752,6 +872,120 @@ function deleteReag() {
   if (!editingReagId) return;
   const reags = load(STORE.reag, []).filter((x) => x.id !== editingReagId);
   save(STORE.reag, reags); closeSheet(); renderAll(); toast('已删除');
+}
+
+/* ---------------- 试剂批量导入 ---------------- */
+function openReagBatch() {
+  let html = `<div class="grabber"></div><h2>批量导入试剂</h2>
+    <p class="hint">每行一个试剂，字段用 <b>逗号 / 制表符 / 空格</b> 分隔：<br>名称, 批号, 数量, 单位, 位置, 效期(YYYY-MM-DD)<br>例：胰酶, TR0712, 5, 瓶, 4℃柜A, 2026-09-01</p>
+    <textarea id="rbText" class="batch-ta" placeholder="粘贴多行试剂…"></textarea>
+    <div id="rbPreview" class="batch-preview"></div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn ghost" onclick="closeSheet()">取消</button>
+      <button class="btn" id="rbConfirm" onclick="confirmReagBatch()">导入</button>
+    </div>`;
+  openSheet(html);
+  const ta = $('rbText'); if (ta) ta.addEventListener('input', renderReagBatchPreview);
+  renderReagBatchPreview();
+}
+function parseReagLines(text) {
+  const out = [];
+  text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).forEach((line) => {
+    const parts = line.includes('\t') ? line.split('\t') : line.split(/[,，]/);
+    const f = parts.map((s) => s.trim());
+    const [name, lot, qty, unit, location, expiry] = f;
+    if (!name) return;
+    out.push({ name, lot: lot || '', qty: qty || 1, unit: unit || '瓶', location: location || '', expiry: expiry || '', min: 0, supplier: '' });
+  });
+  return out;
+}
+function renderReagBatchPreview() {
+  const box = $('rbPreview'); if (!box) return;
+  const arr = parseReagLines($('rbText').value);
+  box.innerHTML = arr.length
+    ? `<div class="bp-count">将导入 ${arr.length} 条</div>` + arr.slice(0, 6).map((r) => `<div class="bp-row">${esc(r.name)} · ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 6 ? `<div class="bp-row muted">…共 ${arr.length} 条</div>` : '')
+    : '<div class="bp-row muted">尚未解析到试剂</div>';
+  const c = $('rbConfirm'); if (c) c.textContent = '导入 ' + arr.length + ' 条';
+}
+function confirmReagBatch() {
+  const arr = parseReagLines($('rbText').value);
+  if (!arr.length) { toast('没有可导入的试剂'); return; }
+  const reags = load(STORE.reag, []);
+  let added = 0, updated = 0;
+  arr.forEach((r) => {
+    const i = reags.findIndex((x) => x.name === r.name && x.lot === r.lot);
+    if (i >= 0) { reags[i] = { ...reags[i], ...r }; updated++; }
+    else { reags.push({ id: uid('r'), ...r }); added++; }
+  });
+  save(STORE.reag, reags); closeSheet(); renderAll();
+  toast(`新增 ${added} · 更新 ${updated}`);
+}
+
+/* ---------------- 冻存盒批量填充 ---------------- */
+function freezerOrder(startRow, startCol, dir, count) {
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const res = []; let ri = rows.indexOf(startRow), ci = startCol;
+  for (let k = 0; k < count; k++) {
+    if (ri < 0 || ri > 7 || ci < 1 || ci > 12) break;
+    res.push({ row: rows[ri], col: ci });
+    if (dir === 'row') { ci++; if (ci > 12) { ci = 1; ri++; } }
+    else { ri++; if (ri > 7) { ri = 0; ci++; } }
+  }
+  return res;
+}
+function openFreezerBatch() {
+  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const rowOpts = rows.map((r) => `<option ${r === 'A' ? 'selected' : ''}>${r}</option>`).join('');
+  let colOpts = ''; for (let c = 1; c <= 12; c++) colOpts += `<option ${c === 1 ? 'selected' : ''}>${c}</option>`;
+  let html = `<div class="grabber"></div><h2>批量填充冻存盒 ${freezerBox}</h2>
+    <p class="hint">每行一个样本名，从起始位置起按顺序填入<b>空格</b>（已占用格自动跳过）。</p>
+    <div class="field"><label>起始位置 / 方向</label><div style="display:flex;gap:10px">
+      <select id="fbRow" class="sel">${rowOpts}</select>
+      <select id="fbCol" class="sel">${colOpts}</select>
+      <select id="fbDir" class="sel"><option value="row" selected>行优先</option><option value="col">列优先</option></select>
+    </div></div>
+    <textarea id="fbText" class="batch-ta" placeholder="样本A&#10;样本B&#10;样本C"></textarea>
+    <div id="fbPreview" class="batch-preview"></div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn ghost" onclick="closeSheet()">取消</button>
+      <button class="btn" id="fbConfirm" onclick="confirmFreezerBatch()">填充</button>
+    </div>`;
+  openSheet(html);
+  const ta = $('fbText'); if (ta) ta.addEventListener('input', renderFreezerBatchPreview);
+  ['fbRow', 'fbCol', 'fbDir'].forEach((id) => { const e = $(id); if (e) e.addEventListener('change', renderFreezerBatchPreview); });
+  renderFreezerBatchPreview();
+}
+function renderFreezerBatchPreview() {
+  const box = $('fbPreview'); if (!box) return;
+  const names = ($('fbText').value || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (!names.length) { box.innerHTML = '<div class="bp-row muted">输入样本名预览</div>'; const cf = $('fbConfirm'); if (cf) cf.textContent = '填充'; return; }
+  const order = freezerOrder($('fbRow').value, +$('fbCol').value, $('fbDir').value, names.length);
+  const occupied = load(STORE.samples, []).filter((s) => s.box === freezerBox).map((s) => s.row + s.col);
+  let willFill = 0;
+  const cells = names.map((n, i) => {
+    const c = order[i]; if (!c) return `<span class="bp-skip">${esc(n)}（超出范围）</span>`;
+    const key = c.row + c.col;
+    if (occupied.includes(key)) return `<span class="bp-skip">${esc(n)}→${c.row}${c.col}(占用)</span>`;
+    willFill++; return `<span class="bp-ok">${esc(n)}→${c.row}${c.col}</span>`;
+  });
+  box.innerHTML = `<div class="bp-count">将填充 ${willFill} 格（跳过 ${names.length - willFill} 个）</div>` + cells.map((c) => `<div class="bp-row">${c}</div>`).join('');
+  const cf = $('fbConfirm'); if (cf) cf.textContent = '填充 ' + willFill + ' 格';
+}
+function confirmFreezerBatch() {
+  const names = ($('fbText').value || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (!names.length) { toast('请输入样本名'); return; }
+  const order = freezerOrder($('fbRow').value, +$('fbCol').value, $('fbDir').value, names.length);
+  const samples = load(STORE.samples, []);
+  const occupied = samples.filter((s) => s.box === freezerBox).map((s) => s.row + s.col);
+  let added = 0;
+  names.forEach((n, i) => {
+    const c = order[i]; if (!c) return;
+    const key = c.row + c.col; if (occupied.includes(key)) return;
+    samples.push({ id: uid('s'), name: n, type: '样本', box: freezerBox, row: c.row, col: c.col, expiry: '', note: '' });
+    occupied.push(key); added++;
+  });
+  save(STORE.samples, samples); closeSheet(); renderFreezer();
+  toast('已填充 ' + added + ' 格');
 }
 
 /* ---------------- 冻存样本 Sheet ---------------- */
@@ -1235,14 +1469,70 @@ function openTemplates() {
   html += `<button class="btn" style="margin-top:8px" onclick="newTemplate()">+ 新建模板</button>`;
   openSheet(html);
 }
+function extractTokens(raw) {
+  const m = [...new Set((raw.match(/\{\{([^}]+)\}\}/g) || []).map((s) => s.slice(2, -2).trim()))];
+  return m;
+}
+function applyTokens(raw, map) {
+  return raw.replace(/\{\{([^}]+)\}\}/g, (_, k) => (map[k.trim()] || '{{' + k.trim() + '}}'));
+}
+function shiftTimes(raw, newStart) {
+  if (!newStart || !/^\d{1,2}:\d{2}$/.test(newStart)) return raw;
+  const times = [...raw.matchAll(/(\d{1,2}):(\d{2})/g)].map((m) => ({ h: +m[1], m: +m[2], i: m.index, len: m[0].length }));
+  if (!times.length) return raw;
+  const base = times[0].h * 60 + times[0].m;
+  const [nh, nm] = newStart.split(':').map(Number);
+  const delta = (nh * 60 + nm) - base;
+  let s = raw;
+  [...times].sort((a, b) => b.i - a.i).forEach((t) => {
+    let tot = t.h * 60 + t.m + delta; tot = ((tot % 1440) + 1440) % 1440;
+    const hh = String(Math.floor(tot / 60)).padStart(2, '0');
+    const mm = String(tot % 60).padStart(2, '0');
+    s = s.slice(0, t.i) + hh + ':' + mm + s.slice(t.i + t.len);
+  });
+  return s;
+}
 function useTemplate(id) {
   const t = load(STORE.templates, []).find((x) => x.id === id);
   if (!t) return;
+  const toks = extractTokens(t.raw);
+  let html = `<div class="grabber"></div><h2>套用模板：${esc(t.title)}</h2>
+    <p class="hint">填入变量，生成带时间线的实验记录。</p>`;
+  toks.forEach((tk, i) => { html += `<div class="field"><label>${esc(tk)}</label><input id="tv_${i}" placeholder="填入${esc(tk)}"></div>`; });
+  html += `<div class="field"><label>标题</label><input id="tfTitle" value="${esc(t.title)}"></div>`;
+  html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
+  html += `<div class="field"><label>起始时间（可选，用于重排时间线）</label><input id="tfStart" type="time"></div>`;
+  html += `<div id="tfPreview" class="step" style="margin-top:6px"></div>`;
+  html += `<div class="btn-row" style="margin-top:12px">
+    <button class="btn ghost" onclick="closeSheet()">取消</button>
+    <button class="btn" onclick="generateFromTemplate('${id}')">生成记录</button></div>`;
+  openSheet(html);
+  const upd = () => {
+    const map = {}; toks.forEach((tk, i) => { map[tk] = $('tv_' + i) ? $('tv_' + i).value : ''; });
+    let inst = applyTokens(t.raw, map); inst = shiftTimes(inst, $('tfStart') ? $('tfStart').value : '');
+    const st = structure(inst);
+    const box = $('tfPreview');
+    if (box) box.innerHTML = '<div class="section-title">预览（时间线）</div>' + (st.length
+      ? st.map((s) => `<div class="tl-item"><b>${esc(s.time || '')}</b> ${esc(s.action || '')} ${esc(s.material || '')}${s.amount ? ' ' + esc(s.amount) + esc(s.unit || '') : ''}${s.param ? ' · ' + esc(s.param) : ''}</div>`).join('')
+      : '<div class="meta">暂无步骤</div>');
+  };
+  toks.forEach((tk, i) => { const el = $('tv_' + i); if (el) el.addEventListener('input', upd); });
+  const st0 = $('tfStart'); if (st0) st0.addEventListener('input', upd);
+  upd();
+}
+function generateFromTemplate(id) {
+  const t = load(STORE.templates, []).find((x) => x.id === id);
+  if (!t) return;
+  const toks = extractTokens(t.raw);
+  const map = {}; toks.forEach((tk, i) => { map[tk] = $('tv_' + i) ? $('tv_' + i).value.trim() : ''; });
+  let inst = applyTokens(t.raw, map); inst = shiftTimes(inst, $('tfStart') ? $('tfStart').value : '');
   closeSheet();
   openExpSheet(null);
-  const ta = $('expRaw'); if (ta) { ta.value = t.raw; }
-  const ti = $('expTitle'); if (ti) ti.value = t.title;
-  toast('已套用模板，可继续记录');
+  const ta = $('expRaw'); if (ta) ta.value = inst;
+  const ti = $('expTitle'); if (ti) ti.value = ($('tfTitle') ? $('tfTitle').value.trim() : '') || t.title;
+  const op = $('expOp'); if (op) op.value = ($('tfOp') ? $('tfOp').value.trim() : '') || '实验员';
+  currentSteps = structure(inst); renderSteps();
+  toast('已生成记录，可继续编辑');
 }
 function newTemplate() {
   let html = `<div class="grabber"></div><h2>新建模板</h2>
@@ -1846,5 +2136,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 ensureTemplateDefaults();
+migrateTemplates();
+migrateExperiments();
 maybeOnboard();
 renderAll();

@@ -101,7 +101,7 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
   background:linear-gradient(120deg,#1d1d1f 55%, #6a64d8 130%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .subtitle{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-.content{padding:14px 16px calc(96px + var(--safe-b));min-height:70vh}
+.content{padding:14px 16px calc(108px + var(--safe-b));min-height:70vh}
 .section-title{font-size:13px;font-weight:600;color:var(--muted);margin:18px 6px 10px;display:flex;justify-content:space-between;align-items:center}
 .section-title .more{font-size:12px;color:var(--blue);font-weight:600;cursor:pointer}
 
@@ -173,20 +173,21 @@ body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
 .tab span{position:relative;z-index:2;transition:opacity .2s}
 .tab.active{color:var(--accent-2)}
 /* 选中项：液态玻璃「透镜气泡」——Apple 液态玻璃招牌指示 */
-.tab.active::before{content:"";position:absolute;left:50%;top:7px;transform:translateX(-50%);
-  width:48px;height:40px;border-radius:17px;
-  background:linear-gradient(160deg,rgba(255,255,255,.55),rgba(255,255,255,.16));
-  backdrop-filter:blur(12px) saturate(200%) var(--lg);-webkit-backdrop-filter:blur(12px) saturate(200%);
-  box-shadow:0 6px 16px rgba(31,45,90,.20), 0 1px 0 rgba(255,255,255,.85) inset, 0 -2px 6px rgba(94,87,254,.16) inset;
+.tab.active::before{content:"";position:absolute;left:50%;top:3px;transform:translateX(-50%);
+  width:58px;height:48px;border-radius:22px;
+  background:linear-gradient(160deg,rgba(255,255,255,.42),rgba(255,255,255,.10));
+  backdrop-filter:blur(18px) saturate(230%) var(--lg);-webkit-backdrop-filter:blur(18px) saturate(230%);
+  box-shadow:0 8px 20px rgba(31,45,90,.22), 0 0 0 1px rgba(255,255,255,.6) inset,
+    0 0 0 1.5px rgba(94,87,254,.20), 0 -3px 8px rgba(94,87,254,.18) inset;
   z-index:1}
 /* 气泡顶部镜面高光 */
-.tab.active::after{content:"";position:absolute;left:50%;top:7px;transform:translateX(-50%);
-  width:48px;height:40px;border-radius:17px;pointer-events:none;z-index:1;opacity:.9;
-  background:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,0) 40%)}
+.tab.active::after{content:"";position:absolute;left:50%;top:3px;transform:translateX(-50%);
+  width:58px;height:48px;border-radius:22px;pointer-events:none;z-index:1;opacity:.9;
+  background:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,0) 42%)}
 .tab.active svg{transform:translateY(-1px) scale(1.06);filter:drop-shadow(0 3px 7px rgba(94,87,254,.5));color:var(--accent-2)}
 
 /* fab —— 玻璃质感圆钮 */
-.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + var(--safe-b));z-index:31;
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + var(--safe-b));z-index:31;
   width:56px;height:56px;border-radius:50%;border:0;font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
   color:#fff;
   background:var(--accent);

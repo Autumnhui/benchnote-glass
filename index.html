@@ -26,10 +26,16 @@
 </svg>
 <div class="app">
   <header class="topbar">
-    <div class="topbar-inner">
-      <h1 id="viewTitle">实验台</h1>
-      <p id="viewSub" class="subtitle"></p>
+    <div class="topbar-card">
+      <div class="topbar-inner">
+        <h1 id="viewTitle">实验台</h1>
+        <p id="viewSub" class="subtitle"></p>
+      </div>
     </div>
+    <button class="share-btn hidden" id="shareBtn" aria-label="分享" onclick="openShare()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+      <span>分享</span>
+    </button>
   </header>
 
   <main class="content">
@@ -63,7 +69,9 @@
     </button>
   </nav>
 
-  <button class="fab" id="fab" aria-label="新建">+</button>
+  <button class="fab" id="fab" aria-label="新建">
+    <svg class="fab-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
 
   <div class="sheet-backdrop" id="sheetBackdrop"></div>
   <div class="sheet" id="sheet"></div>

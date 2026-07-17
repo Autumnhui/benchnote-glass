@@ -30,6 +30,7 @@ const ALL_TOOLS = [
   { key: 'primer', i: '🧬', t: '引物', d: '互补/GC%/Tm', fn: 'openPrimerTool()' },
   { key: 'qr', i: '🔳', t: '标签二维码', d: '生成样品二维码', fn: 'openQRTool()' },
   { key: 'result', i: '📈', t: '结果录入', d: '数据+趋势图', fn: 'openResultTool()' },
+  { key: 'coa', i: '🧾', t: 'CoA 智能审查', d: '拍照识别+翻译+判定', fn: 'openCoATool()' },
   { key: 'template', i: '📋', t: '实验模板', d: '克隆常用 protocol', fn: 'openTemplates()' },
   { key: 'instruments', i: '⚙️', t: '仪器台账', d: '使用与校准到期', fn: 'openInstruments()' },
   { key: 'incidents', i: '⚠️', t: '异常随手记', d: '拍照+语音留痕', fn: 'openIncidents()' },
@@ -38,7 +39,7 @@ const ALL_TOOLS = [
   { key: 'safety', i: '🛡️', t: '安全 Checklist', d: '危化品 / 生物安全确认', fn: 'openSafetyChecklist()' }
 ];
 /* 首页默认展示的 8 个（不含后续加入的模块） */
-const DEFAULT_QUICK = ['timer', 'buffer', 'rcf', 'dilution', 'unit', 'primer', 'weekly', 'template'];
+const DEFAULT_QUICK = ['timer', 'coa', 'rcf', 'dilution', 'unit', 'primer', 'weekly', 'template'];
 const QUICK_KEY = 'bench.quickTools';
 function getQuickTools() {
   let keys = load(QUICK_KEY, null);
@@ -71,7 +72,7 @@ function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
 
 /* ---------------- 种子数据 ---------------- */
 const DEFAULT_TEMPLATES = [
-  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', type: '蛋白', raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
+  { id: 'tp1', title: '外泌体浓缩与缓冲液置换', type: '蛋白', preset: true, raw: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
     consumables: [
       { name: '超滤管 15 mL 30 kDa', brand: '迈博瑞', cat: '耗材' },
       { name: '0.22 μm 针头滤器', brand: '迈博瑞', cat: '耗材' },
@@ -79,7 +80,7 @@ const DEFAULT_TEMPLATES = [
       { name: '50 mL 离心管', brand: 'Bioland/耐思', cat: '耗材' },
       { name: '10 mL 血清移液管', brand: 'Bioland/Nest', cat: '耗材' },
     ] },
-  { id: 'tp2', title: '质粒小量提取', type: '分子', raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱',
+  { id: 'tp2', title: '质粒小量提取', type: '分子', preset: true, raw: '09:00 挑单菌落接种 5 mL LB + 卡那霉素 37℃ 220 rpm 过夜；次日 09:00 取 1 mL 菌液 12000 g 离心 1 min 收集菌体；加 250 μL P1 重悬；加 250 μL P2 裂解；加 350 μL N3 冰上 5 min 12000 g 离心 10 min 取上清过柱',
     consumables: [
       { name: 'LB 液体培养基', brand: 'Solarbio', cat: '试剂' },
       { name: '卡那霉素 (50 mg/mL)', brand: 'Solarbio', cat: '试剂' },
@@ -88,7 +89,7 @@ const DEFAULT_TEMPLATES = [
       { name: '质粒小提试剂盒', brand: '通用', cat: '试剂' },
       { name: 'Benzonase 核酸酶 (去RNA)', brand: 'NEB', cat: '试剂' },
     ] },
-  { id: 'tp3', title: '细胞传代', type: '细胞培养', raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶',
+  { id: 'tp3', title: '细胞传代', type: '细胞培养', preset: true, raw: '弃旧培养基 PBS 洗 1 次；加 1 mL 0.25% 胰酶 37℃ 2 min；加 2 mL 完全培养基终止 吹打 5 次 分至 2 个 T25 瓶',
     consumables: [
       { name: '完全培养基 (DMEM/RPMI)', brand: '迈邦/Lonza', cat: '试剂' },
       { name: '0.25% 胰酶-EDTA', brand: '迈邦/Biosharp', cat: '试剂' },
@@ -98,7 +99,7 @@ const DEFAULT_TEMPLATES = [
       { name: '10 mL 移液管', brand: 'Bioland/Nest', cat: '耗材' },
       { name: '15/50 mL 离心管', brand: 'Bioland/Nest', cat: '耗材' },
     ] },
-  { id: 'tp4', title: '蛋白纯化（AKTA）', type: '蛋白', raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL',
+  { id: 'tp4', title: '蛋白纯化（AKTA）', type: '蛋白', preset: true, raw: '09:30 平衡层析柱 5 CV 缓冲液 A；10:00 上样 {{样本名}} 批号 {{批号}} 流速 1 mL/min；11:30 收集主峰 共 3 mL',
     consumables: [
       { name: 'Protein A 填料 / 预装柱', brand: '楚天微球', cat: '耗材' },
       { name: 'Tris/Hepes/NaCl 等缓冲液组分', brand: 'Sigma/Solarbio', cat: '试剂' },
@@ -403,6 +404,7 @@ let currentView = 'overview';
 let reagSeg = 'reag';
 let reagFilter = 'all';
 let reagSearch = '';
+let calYear, calMonth; // 效期日历：默认当前月（calMonth 0-based）
 let freezerBox = 'B1';
 let freezerSearch = '';
 let freezerMulti = false;
@@ -414,6 +416,10 @@ let resultMetric = 'OD600 菌液';
 let expSearch = '';
 let expFilter = 'all';
 let expTag = '';
+let expSelectMode = false;
+let expSel = new Set();
+let reagSelectMode = false;
+let reagSel = new Set();
 
 /* ---------------- 工具 ---------------- */
 function nowISO() { return new Date().toISOString(); }
@@ -429,8 +435,7 @@ function fmtDate(iso) {
 function reagStatus(r) {
   const days = daysUntil(r.expiry);
   if (days < 0) return { key: 'bad', text: '已过期' };
-  if (days <= 7) return { key: 'bad', text: '临期·禁领' };
-  if (days <= 30) return { key: 'warn', text: '临期<30天' };
+  if (days <= 30) return { key: 'warn', text: '临期' };
   if (Number(r.qty) <= Number(r.min || 0)) return { key: 'warn', text: '需补货' };
   return { key: 'ok', text: '正常' };
 }
@@ -471,24 +476,41 @@ function switchView(view) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
   renderAll();
   if (window.scrollTo) window.scrollTo(0, 0);
+  _barBaseH = 0; _titleF = -1;                  // 标题文字变了，重新测量基准高度
   updateTitleScale();
 }
-/* 标题随滚动逐渐收缩：前 90px 内从 30px 缩到 19px，并释放顶部留白 */
-let _titleRaf = 0;
+/* 标题随滚动收缩（iOS 大标题风格）：前 90px 内整块从满尺寸收缩到 ~66%。
+   做法：对整个 .topbar（玻璃卡 + 边框 + 标题）施加 transform:scale(s)，origin top-left，
+   整块等比一起缩小（不再只缩内层导致边框/块不同步）。同时为 .topbar 设负 marginBottom
+   收回缩放后空出的高度，使下方内容跟随上移、不产生空白。
+   分享按钮位于 .topbar 内，随整块一起朝左上移动；通过 --inv(=1/s) 反向缩放保持自身大小不变。 */
+let _titleRaf = 0, _titleF = -1, _barBaseH = 0;
+function measureBar() {
+  const top = document.querySelector('.topbar');
+  if (!top) return;
+  _barBaseH = top.offsetHeight;                                           // 默认 81（.topbar 固定高度，不随收缩变化）
+  document.documentElement.style.setProperty('--baseH', _barBaseH + 'px'); // 供 .content 同步上移消除留白
+}
 function onScrollTitle() {
-  if (_titleRaf) return;                       // rAF 节流：每帧最多算一次，避免滚动时频繁重排
+  if (_titleRaf) return;                       // rAF 节流：每帧最多算一次
   _titleRaf = requestAnimationFrame(() => { _titleRaf = 0; updateTitleScale(); });
 }
 function updateTitleScale() {
-  const h1 = $('viewTitle'), sub = $('viewSub'), inner = document.querySelector('.topbar-inner');
-  if (!h1 || !inner) return;
+  const sub = $('viewSub');
+  if (!_barBaseH) measureBar();
   const y = window.scrollY || document.documentElement.scrollTop || 0;
   const f = Math.min(Math.max(y / 90, 0), 1);
-  h1.style.fontSize = (30 - 11 * f).toFixed(1) + 'px';
-  h1.style.lineHeight = (1.15 - 0.18 * f).toFixed(2);
-  inner.style.paddingTop = (14 - 5 * f).toFixed(1) + 'px';
-  inner.style.paddingBottom = (11 - 4 * f).toFixed(1) + 'px';
-  if (sub) { sub.style.opacity = (1 - 0.65 * f).toFixed(2); sub.style.fontSize = (13 - 2.5 * f).toFixed(1) + 'px'; }
+  if (f === _titleF) return;                   // 无变化跳过
+  _titleF = f;
+  const s = 1 - 0.34 * f;                       // 整块 100% -> 66%
+  // 整条收缩全走 transform（合成层、零重排、玻璃模糊不每帧重算 => 丝滑）：
+  //  - .topbar-card（玻璃卡+边框）：scaleY(s) origin top left => 满宽不变、高度向上收小、边框跟着一起缩
+  //  - .topbar-inner（文字）：scaleX(s) origin top left => 与卡片 scaleY 合成后文字等比缩小、钉在左上角（不向左缩宽度）
+  //  - .content：translateY 同步上移，消除卡片变小后的顶部留白
+  //  - 分享按钮在 .topbar 内、不缩放，靠 CSS calc(--s/--baseH) 的 transform 始终垂直居中于卡片
+  //  .topbar 本身只作 sticky 容器、不缩放 => 吸顶稳定不破
+  document.documentElement.style.setProperty('--s', s.toFixed(3));
+  if (sub) sub.style.opacity = (1 - 0.7 * f).toFixed(2);
 }
 function renderAll() {
   if (currentView === 'overview') renderOverview();
@@ -498,6 +520,7 @@ function renderAll() {
   else if (currentView === 'more') renderMore();
   setHeader();
   setFab();
+  setShareBtn();
 }
 function setHeader() {
   const exps = load(STORE.exp, []);
@@ -521,9 +544,120 @@ function setHeader() {
 function setFab() {
   const fab = $('fab');
   const on = (currentView === 'experiments' || currentView === 'reagents');
-  if (on) { fab.classList.remove('hidden'); fab.textContent = '+'; }
+  if (on) { fab.classList.remove('hidden'); }
   else { fab.classList.add('hidden'); }
   document.body.classList.toggle('fab-on', on);
+}
+
+/* ---------------- 实验台 / 更多页 分享 ---------------- */
+const SHARE_URL = 'https://labbench.pages.dev';
+const SHARE_TITLE = '实验台 · BenchNote';
+const SHARE_DESC = '实验室全能助手 · 记录 · 库存 · Protocol';
+function setShareBtn() {
+  const b = $('shareBtn');
+  if (!b) return;
+  b.classList.toggle('hidden', !(currentView === 'overview' || currentView === 'more'));
+}
+function buildQRDataUrl(size) {
+  const qr = qrcode(0, 'M');
+  qr.addData(SHARE_URL); qr.make();
+  const count = qr.getModuleCount();
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#0b0b0c';
+  const cell = size / count;
+  for (let r = 0; r < count; r++)
+    for (let c = 0; c < count; c++)
+      if (qr.isDark(r, c)) ctx.fillRect(Math.round(c * cell), Math.round(r * cell), Math.ceil(cell), Math.ceil(cell));
+  return cv.toDataURL('image/png');
+}
+function openShare() {
+  const qr = buildQRDataUrl(440);
+  let html = `<div class="grabber"></div>
+  <div class="share-card">
+    <div class="sc-icon">🧪</div>
+    <div class="sc-name">${SHARE_TITLE}</div>
+    <div class="sc-desc">${SHARE_DESC}</div>
+    <img class="sc-qr" src="${qr}" alt="二维码">
+    <div class="sc-url">${SHARE_URL}</div>
+    <div class="sc-tip">扫码即刻打开 · 免安装</div>
+  </div>
+  <div class="share-actions">
+    <button class="btn ghost" onclick="saveShareImage()">保存图片</button>
+    <button class="btn primary" onclick="shareVia()">分享</button>
+  </div>`;
+  openSheet(html);
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+/* 白色烧瓶 logo（矢量绘制，跨平台必定显示，不依赖 emoji 字体） */
+function drawFlask(ctx, cx, cy, s) {
+  ctx.save();
+  ctx.translate(cx, cy); ctx.scale(s, s);
+  ctx.strokeStyle = '#ffffff'; ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.lineWidth = 4.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-7, -26); ctx.lineTo(-7, -8); ctx.lineTo(-20, 22); ctx.lineTo(20, 22); ctx.lineTo(7, -8); ctx.lineTo(7, -26);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-15, 4); ctx.lineTo(15, 4); ctx.lineTo(18, 20); ctx.lineTo(-18, 20); ctx.closePath();
+  ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-15, 4); ctx.lineTo(15, 4); ctx.stroke();
+  ctx.restore();
+}
+function saveShareImage() {
+  const W = 640, H = 800;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.textAlign = 'center';                     // 所有文字水平居中（之前换矢量 logo 时误删了这行）
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#f5f3ff'); g.addColorStop(1, '#eaf1ff');
+  ctx.fillStyle = g; roundRect(ctx, 0, 0, W, H, 44); ctx.fill();
+  const ig = ctx.createLinearGradient(0, 0, 80, 80);
+  ig.addColorStop(0, '#7c6cff'); ig.addColorStop(1, '#34c8ff');
+  ctx.fillStyle = ig; roundRect(ctx, W / 2 - 40, 56, 80, 80, 22); ctx.fill();
+  drawFlask(ctx, W / 2, 96, 1);
+  ctx.fillStyle = '#1a1a1e'; ctx.font = '700 26px sans-serif'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(SHARE_TITLE, W / 2, 192);
+  ctx.fillStyle = '#6b6f76'; ctx.font = '15px sans-serif';
+  ctx.fillText(SHARE_DESC, W / 2, 220);
+  const qSize = 320, qx = (W - qSize) / 2, qy = 262;
+  ctx.fillStyle = '#fff'; roundRect(ctx, qx - 18, qy - 18, qSize + 36, qSize + 36, 28); ctx.fill();
+  const qr = qrcode(0, 'M'); qr.addData(SHARE_URL); qr.make();
+  const count = qr.getModuleCount(); const cell = qSize / count;
+  ctx.fillStyle = '#0b0b0c';
+  for (let r = 0; r < count; r++)
+    for (let c = 0; c < count; c++)
+      if (qr.isDark(r, c)) ctx.fillRect(qx + c * cell, qy + r * cell, Math.ceil(cell), Math.ceil(cell));
+  ctx.fillStyle = '#5a52e0'; ctx.font = '600 16px sans-serif';
+  ctx.fillText(SHARE_URL, W / 2, qy + qSize + 70);
+  ctx.fillStyle = '#6b6f76'; ctx.font = '14px sans-serif';
+  ctx.fillText('扫码即刻打开 · 免安装', W / 2, qy + qSize + 100);
+  const a = document.createElement('a');
+  a.href = cv.toDataURL('image/png');
+  a.download = '实验台-BenchNote.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('已保存到本地');
+}
+function shareVia() {
+  const text = `推荐一个好用的实验室助手「${SHARE_TITLE}」——语音/文字记实验、AI 一键整理成规范记录，试剂耗材库存管理、Protocol 模板、二维码标签，打开即用，免安装。\n${SHARE_URL}`;
+  if (navigator.share) {
+    navigator.share({ title: SHARE_TITLE, text, url: SHARE_URL }).catch(() => {});
+  } else {
+    fallbackCopy(text);
+    toast('介绍文本已复制，去粘贴分享吧');
+    closeSheet();
+  }
 }
 
 function emptyState(title, sub) {
@@ -605,7 +739,52 @@ function setExpFilter(f) { expFilter = f; renderExperiments(); }
 function setExpTag(t) { expTag = (expTag === t ? '' : t); renderExperiments(); }
 function renderExpList() {
   const box = $('expListInner'); if (!box) return;
-  let exps = load(STORE.exp, []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const exps = getVisibleExps();
+  let html = `<div class="section-title">记录（${exps.length}）<span class="more" onclick="toggleExpSelect()">${expSelectMode ? '完成' : '🗂️ 批量管理'}</span></div>`;
+  if (expSelectMode) html += batchToolbarHTML('exp');
+  if (!exps.length) html += emptyState('没有匹配的记录', '调整筛选或点 + 新建');
+  else {
+    exps.forEach((e) => {
+      const lots = [...new Set((e.steps || []).map((s) => s.lot).filter(Boolean))];
+      const tags = (e.tags || []).map((t) => `<span class="tag gray">#${esc(t)}</span>`).join(' ');
+      const metaLot = e.lot || (lots.length ? lots.join('、') : '');
+      const metaParts = [(e.steps || []).length + ' 个步骤'];
+      if (e.sample) metaParts.push('样本 ' + esc(e.sample));
+      if (metaLot) metaParts.push('批号 ' + esc(metaLot));
+      const selOn = expSel.has(e.id);
+      const cls = 'card' + (expSelectMode ? ' selmode' : '') + (selOn ? ' sel' : '');
+      const click = expSelectMode ? `toggleExpSel('${e.id}')` : `openExpSheet('${e.id}')`;
+      const chk = expSelectMode ? '<div class="chk"></div>' : '';
+      const pinTag = e.pinned ? '<span class="tag info">置顶</span>' : '';
+      html += `<div class="${cls}" onclick="${click}">
+        ${chk}
+        <div class="row1"><h3>${esc(e.title)}</h3><span class="tag gray">${fmtDate(e.createdAt)}</span></div>
+        <div class="meta">${metaParts.join(' · ')}</div>
+        ${tags ? '<div class="tags-row">' + tags + (e.pinned ? ' ' + pinTag : '') + '</div>' : (e.pinned ? '<div class="tags-row">' + pinTag + '</div>' : '')}
+        <div class="snippet">${esc(e.raw)}</div></div>`;
+    });
+  }
+  box.innerHTML = html;
+}
+
+/* ---------------- 实验记录：批量管理 ---------------- */
+function batchToolbarHTML(kind) {
+  const sel = kind === 'reag' ? reagSel : expSel;
+  const dis = sel.size ? '' : 'disabled';
+  const toggleFn = kind === 'reag' ? 'toggleReagSelect' : 'toggleExpSelect';
+  return `<div class="fm-toolbar">
+    <span class="fm-count">已选 ${sel.size} 项</span>
+    <div class="fm-btns">
+      <button class="mini-btn" onclick="${kind}SelectAll()">全选</button>
+      <button class="mini-btn" onclick="${kind}ClearSel()">清空</button>
+      <button class="mini-btn" onclick="${kind}PinSel()" ${dis}>置顶</button>
+      <button class="mini-btn danger" onclick="${kind}DeleteSel()" ${dis}>删除</button>
+      <button class="mini-btn" onclick="${toggleFn}()">取消</button>
+    </div></div>`;
+}
+function getVisibleExps() {
+  let exps = load(STORE.exp, []).slice().sort((a, b) =>
+    ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (new Date(b.createdAt) - new Date(a.createdAt)));
   if (expSearch) {
     const q = expSearch.toLowerCase();
     exps = exps.filter((e) => (e.title + ' ' + (e.raw || '') + ' ' + (e.operator || '') + ' ' +
@@ -616,24 +795,28 @@ function renderExpList() {
   if (expFilter === 'week') { const w = Date.now() - 7 * 86400000; exps = exps.filter((e) => new Date(e.createdAt).getTime() >= w); }
   if (expFilter === 'month') { const m = Date.now() - 30 * 86400000; exps = exps.filter((e) => new Date(e.createdAt).getTime() >= m); }
   if (expTag) exps = exps.filter((e) => Array.isArray(e.tags) && e.tags.includes(expTag));
-  let html = `<div class="section-title">记录（${exps.length}）</div>`;
-  if (!exps.length) html += emptyState('没有匹配的记录', '调整筛选或点 + 新建');
-  else {
-    exps.forEach((e) => {
-      const lots = [...new Set((e.steps || []).map((s) => s.lot).filter(Boolean))];
-      const tags = (e.tags || []).map((t) => `<span class="tag gray">#${esc(t)}</span>`).join(' ');
-      const metaLot = e.lot || (lots.length ? lots.join('、') : '');
-      const metaParts = [(e.steps || []).length + ' 个步骤'];
-      if (e.sample) metaParts.push('样本 ' + esc(e.sample));
-      if (metaLot) metaParts.push('批号 ' + esc(metaLot));
-      html += `<div class="card tap" onclick="openExpSheet('${e.id}')">
-        <div class="row1"><h3>${esc(e.title)}</h3><span class="tag gray">${fmtDate(e.createdAt)}</span></div>
-        <div class="meta">${metaParts.join(' · ')}</div>
-        ${tags ? '<div class="tags-row">' + tags + '</div>' : ''}
-        <div class="snippet">${esc(e.raw)}</div></div>`;
-    });
-  }
-  box.innerHTML = html;
+  return exps;
+}
+function toggleExpSelect() { expSelectMode = !expSelectMode; if (!expSelectMode) expSel.clear(); renderExperiments(); }
+function toggleExpSel(id) { if (expSel.has(id)) expSel.delete(id); else expSel.add(id); renderExpList(); }
+function expSelectAll() { getVisibleExps().forEach((e) => expSel.add(e.id)); renderExpList(); }
+function expClearSel() { expSel.clear(); renderExpList(); }
+function expPinSel() {
+  if (!expSel.size) { toast('先选择记录'); return; }
+  const exps = load(STORE.exp, []);
+  const allPinned = exps.filter((e) => expSel.has(e.id)).every((e) => e.pinned);
+  exps.forEach((e) => { if (expSel.has(e.id)) e.pinned = !allPinned; });
+  save(STORE.exp, exps);
+  toast(allPinned ? '已取消置顶' : '已置顶 ' + expSel.size + ' 条');
+  expSelectMode = false; expSel.clear(); renderExperiments();
+}
+function expDeleteSel() {
+  if (!expSel.size) { toast('先选择记录'); return; }
+  const n = expSel.size;
+  if (!confirm(`删除选中的 ${n} 条记录？此操作不可撤销。`)) return;
+  const exps = load(STORE.exp, []).filter((e) => !expSel.has(e.id));
+  save(STORE.exp, exps); expSel.clear(); expSelectMode = false; renderExperiments();
+  toast('已删除 ' + n + ' 条');
 }
 
 /* ---------------- 试剂 / 冻存 ---------------- */
@@ -641,15 +824,7 @@ function renderReagents() {
   if (reagSeg === 'freezer') return renderFreezer();
   if (reagSeg === 'calendar') return renderExpiryCalendar();
   const reags = load(STORE.reag, []);
-  let list = reags.filter((r) => {
-    if (reagSearch && !(r.name + r.lot + r.location).toLowerCase().includes(reagSearch.toLowerCase())) return false;
-    if (reagFilter === 'all') return true;
-    const st = reagStatus(r);
-    if (reagFilter === 'expired') return daysUntil(r.expiry) < 0;
-    if (reagFilter === 'expiring') return st.text.includes('临期');
-    if (reagFilter === 'low') return st.text === '需补货';
-    return true;
-  });
+  const list = getVisibleReags();
   let html = `<div class="seg">
     <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂/耗材</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
@@ -661,63 +836,124 @@ function renderReagents() {
     html += `<div class="chip ${reagFilter === k ? 'active' : ''}" onclick="setReagFilter('${k}')">${l}</div>`;
   });
   html += '</div>';
-  html += `<button class="btn secondary" style="margin:6px 0 12px;width:100%" onclick="openReagBatch()">📥 批量导入试剂耗材</button>`;
+  html += `<div class="reag-batch-row">
+    <button class="btn secondary" style="flex:1" onclick="openReagBatch()">📥 批量导入</button>
+    <button class="btn secondary" style="flex:1" onclick="toggleReagSelect()">${reagSelectMode ? '完成' : '🗂️ 批量管理'}</button>
+  </div>`;
+  if (reagSelectMode) html += batchToolbarHTML('reag');
   if (!list.length) html += emptyState('没有符合条件的试剂', '调整筛选或点 + 添加');
   else {
     list.forEach((r) => {
       const st = reagStatus(r);
       const tagCls = st.key === 'ok' ? 'ok' : st.key === 'warn' ? 'warn' : 'bad';
-      const canInquire = st.text === '需补货' || st.text === '已过期' || st.text.includes('临期');
+      const canInquire = !reagSelectMode && (st.text === '需补货' || st.text === '已过期' || st.text.includes('临期'));
       const inquireBtn = canInquire ? `<button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button>` : '';
-      html += `<div class="card tap" onclick="openReagSheet('${r.id}')">
-        <div class="row1"><h3>${esc(r.name)}</h3><span class="tag ${tagCls}">${st.text}</span></div>
+      const selOn = reagSel.has(r.id);
+      const cls = 'card' + (reagSelectMode ? ' selmode' : '') + (selOn ? ' sel' : '');
+      const click = reagSelectMode ? `toggleReagSel('${r.id}')` : `openReagSheet('${r.id}')`;
+      const chk = reagSelectMode ? '<div class="chk"></div>' : '';
+      const pinMark = r.pinned ? ' · 置顶' : '';
+      html += `<div class="${cls}" onclick="${click}">
+        ${chk}
+        <div class="row1"><h3>${esc(r.name)}</h3>${st.key === 'ok' ? (r.pinned ? '<span class="tag ok">置顶</span>' : '') : `<span class="tag ${tagCls}">${st.text}${pinMark}</span>`}</div>
         <div class="meta-row"><div class="meta">库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>${inquireBtn ? `<div class="meta-act">${inquireBtn}</div>` : ''}</div>
         <div class="meta meta-expiry">效期 ${esc(r.expiry)} · 货号 ${esc(r.lot)}</div>
       </div>`;
     });
   }
   const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
-  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="openPurchase()">生成请购单（${needBuy.length}）</button>`;
+  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
+}
+/* ---------------- 试剂：批量管理 ---------------- */
+function getVisibleReags() {
+  const reags = load(STORE.reag, []);
+  const idx = new Map(reags.map((r, i) => [r.id, i]));
+  let list = reags.filter((r) => {
+    if (reagSearch && !(r.name + r.lot + r.location).toLowerCase().includes(reagSearch.toLowerCase())) return false;
+    if (reagFilter === 'all') return true;
+    const st = reagStatus(r);
+    if (reagFilter === 'expired') return daysUntil(r.expiry) < 0;
+    if (reagFilter === 'expiring') return st.text.includes('临期');
+    if (reagFilter === 'low') return st.text === '需补货';
+    return true;
+  });
+  list.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (idx.get(a.id) - idx.get(b.id)));
+  return list;
+}
+function toggleReagSelect() { reagSelectMode = !reagSelectMode; if (!reagSelectMode) reagSel.clear(); renderReagents(); }
+function toggleReagSel(id) { if (reagSel.has(id)) reagSel.delete(id); else reagSel.add(id); renderReagents(); }
+function reagSelectAll() { getVisibleReags().forEach((r) => reagSel.add(r.id)); renderReagents(); }
+function reagClearSel() { reagSel.clear(); renderReagents(); }
+function reagPinSel() {
+  if (!reagSel.size) { toast('先选择试剂'); return; }
+  const reags = load(STORE.reag, []);
+  const allPinned = reags.filter((r) => reagSel.has(r.id)).every((r) => r.pinned);
+  reags.forEach((r) => { if (reagSel.has(r.id)) r.pinned = !allPinned; });
+  save(STORE.reag, reags);
+  toast(allPinned ? '已取消置顶' : '已置顶 ' + reagSel.size + ' 项');
+  reagSelectMode = false; reagSel.clear(); renderReagents();
+}
+function reagDeleteSel() {
+  if (!reagSel.size) { toast('先选择试剂'); return; }
+  const n = reagSel.size;
+  if (!confirm(`删除选中的 ${n} 项试剂？此操作不可撤销。`)) return;
+  const reags = load(STORE.reag, []).filter((r) => !reagSel.has(r.id));
+  save(STORE.reag, reags); reagSel.clear(); reagSelectMode = false; renderReagents();
+  toast('已删除 ' + n + ' 项');
 }
 function setReagSeg(s) { reagSeg = s; renderReagents(); setHeader(); }
 function setReagFilter(f) { reagFilter = f; renderReagents(); }
 function onReagSearch(v) { reagSearch = v; renderReagents(); const inp = $('reagSearch'); if (inp) { inp.focus(); const len = inp.value.length; inp.setSelectionRange(len, len); } }
 function renderExpiryCalendar() {
   const reags = load(STORE.reag, []);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // 默认当前月
+  if (calYear == null) { calYear = today.getFullYear(); calMonth = today.getMonth(); }
   let html = `<div class="seg">
     <button class="${reagSeg === 'reag' ? 'active' : ''}" onclick="setReagSeg('reag')">试剂/耗材</button>
     <button class="${reagSeg === 'freezer' ? 'active' : ''}" onclick="setReagSeg('freezer')">冻存库</button>
     <button class="${reagSeg === 'calendar' ? 'active' : ''}" onclick="setReagSeg('calendar')">效期日历</button>
   </div>`;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const dow = (today.getDay() + 6) % 7; // 周一=0
-  const start = new Date(today); start.setDate(today.getDate() - dow);
+  // 月份导航
+  const mn = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  html += `<div class="expcal-nav"><span class="more" onclick="calPrevMonth()">◀ 上月</span><strong>${calYear}年 ${mn[calMonth]}</strong><span class="more" onclick="calNextMonth()">下月 ▶</span></div>`;
+  // 构建当月网格
+  const first = new Date(calYear, calMonth, 1);
+  const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
+  const startDow = (first.getDay() + 6) % 7; // 周一=0
+  const totalCells = startDow + lastDay;
+  const rows = Math.ceil(totalCells / 7);
   const dayMark = {};
   reags.forEach((r) => { if (r.expiry && r.expiry !== '—') { (dayMark[r.expiry] = dayMark[r.expiry] || []).push(r); } });
   const wd = ['一', '二', '三', '四', '五', '六', '日'];
   html += '<div class="expcal">';
   wd.forEach((w) => { html += `<div class="expcal-head">${w}</div>`; });
-  for (let i = 0; i < 35; i++) {
-    const d = new Date(start); d.setDate(start.getDate() + i);
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  for (let i = 0; i < rows * 7; i++) {
+    if (i < startDow || i >= startDow + lastDay) {
+      html += '<div class="expcal-cell empty"></div>';
+      continue;
+    }
+    const day = i - startDow + 1;
+    const d = new Date(calYear, calMonth, day);
+    const ds = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = d.getTime() === today.getTime();
     const marks = dayMark[ds] || [];
-    let inner = `<div class="ec-num">${d.getDate()}</div>`;
+    let inner = `<div class="ec-num">${day}</div>`;
     marks.slice(0, 2).forEach((m) => { inner += `<div class="ec-dot ${reagStatus(m).key}" title="${esc(m.name)}">${esc(m.name.slice(0, 4))}</div>`; });
     if (marks.length > 2) inner += `<div class="ec-more">+${marks.length - 2}</div>`;
     html += `<div class="expcal-cell${isToday ? ' today' : ''}">${inner}</div>`;
   }
   html += '</div>';
-  const groups = [
-    ['已过期', (r) => daysUntil(r.expiry) < 0, 'bad'],
-    ['7 天内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && d <= 7; }, 'warn'],
-    ['30 天内到期', (r) => { const d = daysUntil(r.expiry); return d > 7 && d <= 30; }, 'info']
-  ];
+  // 采购清单（筛选当月到期）
   html += '<div class="section-title">采购 / 处理清单</div>';
   let any = false;
+  const groups = [
+    ['已过期', (r) => daysUntil(r.expiry) < 0 && r.expiry && r.expiry.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`), 'bad'],
+    ['本月内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && r.expiry && r.expiry.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`); }, 'warn']
+  ];
   groups.forEach(([title, fn, cls]) => {
-    const list = reags.filter((r) => r.expiry && r.expiry !== '—' && fn(r));
+    const list = reags.filter((r) => fn(r));
     if (list.length) {
       any = true;
       html += `<div class="ec-group"><div class="ec-gtitle ${cls}">${title}（${list.length}）</div>`;
@@ -725,20 +961,21 @@ function renderExpiryCalendar() {
         const d = daysUntil(r.expiry);
         const dd = d < 0 ? `逾期${-d}天` : `剩${d}天`;
         const tk = reagStatus(r).key;
-        const ico = { ok: 'g', warn: 'o', bad: 'r' }[tk];
-        html += `<div class="list-row" onclick="openReagSheet('${r.id}')"><div class="lr-ico ${ico}">⏳</div>
+        html += `<div class="list-row" onclick="openReagSheet('${r.id}')">
           <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">批号 ${esc(r.lot)} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div>
-          <span class="tag ${tk}" style="margin-top:6px;display:inline-block">${dd}</span>
-          <div style="margin-top:6px"><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button></div></div></div>`;
+          <span class="tag ${tk}" style="margin-top:6px;display:inline-block">${dd}</span></div>
+          <button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button></div>`;
       });
       html += '</div>';
     }
   });
-  if (!any) html += emptyState('未来 30 天无到期试剂', '');
+  if (!any) html += emptyState(calYear + '年' + (calMonth+1) + '月无到期试剂', '');
   const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
-  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:8px" onclick="openPurchase()">生成请购单（${needBuy.length}）</button>`;
+  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
+function calPrevMonth() { if (--calMonth < 0) { calMonth = 11; calYear--; } renderExpiryCalendar(); }
+function calNextMonth() { if (++calMonth > 11) { calMonth = 0; calYear++; } renderExpiryCalendar(); }
 
 function getBoxes() {
   let boxes = load(STORE.boxes, null);
@@ -765,7 +1002,7 @@ function renderFreezer() {
   html += `<input class="search" id="freezerSearch" placeholder="搜索本盒样本 · 高亮匹配格子" value="${esc(freezerSearch)}" oninput="onFreezerSearch(this.value)">`;
   html += `<div class="freezer-actions">
     <button class="btn secondary mini" onclick="openFreezerBatch()">📥 批量填充</button>
-    <button class="btn secondary mini ${freezerMulti ? 'on' : ''}" onclick="toggleFreezerMulti()">${freezerMulti ? '✓ 多选开' : '☑️ 多选'}</button>
+    <button class="btn secondary mini" onclick="toggleFreezerMulti()">${freezerMulti ? '完成' : '🗂️ 批量管理'}</button>
   </div>`;
   if (freezerMulti) {
     html += `<div class="fm-toolbar">
@@ -1745,30 +1982,7 @@ openSampleSheet = function (id, row, col) {
   _openSampleSheet(id, row, col);
 };
 
-/* ---------------- 请购单 ---------------- */
-function openPurchase() {
-  const reags = load(STORE.reag, []);
-  const need = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
-  let lines = '请购单（自动生成）\n';
-  let html = '<div class="grabber"></div><h2>请购单</h2><p class="hint">系统根据"低库存 + 临期/过期"自动汇总，可复制后走采购流程，或一键发给供应商。</p>';
-  if (!need.length) html += emptyState('暂无需采购项', '');
-  else {
-    need.forEach((r) => {
-      const reason = daysUntil(r.expiry) < 0 ? '已过期' : daysUntil(r.expiry) <= 30 ? `临期(${r.expiry})` : '低于安全库存';
-      const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min));
-      html += `<div class="purchase-item"><span><b>${esc(r.name)}</b> · 货号 ${esc(r.lot)}<br><span style="color:var(--muted);font-size:12px">${reason} · 品牌 ${esc(r.supplier || '—')}</span></span><span style="text-align:right">建议 ${suggest}${esc(r.unit)}</span></div>`;
-      lines += `- ${r.name} | 货号 ${r.lot} | 建议采购 ${suggest}${r.unit} | 原因：${reason} | 品牌：${r.supplier || '—'}\n`;
-    });
-    html += `<div class="copy-box" id="poText">${esc(lines)}</div>
-      <div class="btn-row" style="margin-top:14px">
-        <button class="btn secondary" onclick="copyPO()">📋 复制请购单</button>
-        <button class="btn" onclick="inquireExpiring()">📤 发送给供应商</button>
-      </div>
-      <div class="supplier-hint">发送给供应商：自动生成含联系方式的询价单，扫码加 <b>${SUPPLIERS.research.contact}</b>（${SUPPLIERS.research.shortName}）微信即可。</div>`;
-  }
-  openModal(html);
-}
-function copyPO() { const t = $('poText').textContent; navigator.clipboard?.writeText(t).then(() => toast('已复制'), () => toast('复制失败')); }
+/* ---------------- 请购单（已移除，统一走一键询价弹窗） ---------------- */
 
 /* ============================================================
    自然获客入口：询价 / 采购单 / 校准服务 / 模板耗材
@@ -1831,7 +2045,10 @@ function inquireExpiring() {
     ['需补货', (r) => Number(r.qty) <= Number(r.min || 0)]
   ];
   const items = [];
+  const seen = new Set();
   groups.forEach(([_, fn]) => reags.filter(fn).forEach((r) => {
+    if (seen.has(r.id)) return; // 同一试剂可能同时命中多组（如临期又需补货），去重
+    seen.add(r.id);
     const st = reagStatus(r);
     const reason = st.text === '需补货' ? '库存不足' : daysUntil(r.expiry) < 0 ? '已过期' : `剩${daysUntil(r.expiry)}天`;
     const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min) || 1);
@@ -1877,6 +2094,253 @@ function inquireTemplate(tplId) {
   if (!t || !t.consumables) return;
   const items = t.consumables.map((c) => ({ name: c.name, spec: c.cat, qty: 1, unit: '份', reason: '模板「' + t.title + '」推荐', brandHint: c.brand }));
   openInquireSheet(items, '模板耗材询价 · ' + t.title, 'template');
+}
+
+/* ============================================================
+   CoA 检验报告智能审查：拍照/上传 → 视觉 OCR + 翻译 + 抽取判定
+   复用 Agnes 视觉模型（agnes-1.5-flash 支持图片输入），无需额外 OCR 库
+   ============================================================ */
+let coaImgData = '';           // 压缩后的图片 dataURL（图片来源）
+let coaDocText = '';           // 从文件提取的文字（文档来源）
+let coaMode = '';              // 'image' | 'text'
+let coaSrcName = '';           // 来源文件名 / 描述
+let coaResult = null;          // 最近一次审查结果 JSON
+function openCoATool() {
+  // 重置状态
+  coaImgData = ''; coaDocText = ''; coaMode = ''; coaSrcName = ''; coaResult = null;
+  let html = `<div class="grabber"></div><h2>CoA 智能审查</h2>
+    <p class="hint">拍照、从相册选图，或选择文件（Excel / Word / PDF 转文字、图片 AI 识别），AI 自动识别、翻译（非中文才译）、抽取检验项并判定合格 / 超标(OOS)。面向 QC / 质量部 / 采购。</p>
+    <div class="coa-inputs">
+      <button class="coa-btn" onclick="document.getElementById('coaCam').click()"><span class="ico">📷</span><span>拍照</span></button>
+      <button class="coa-btn" onclick="document.getElementById('coaAlb').click()"><span class="ico">🖼️</span><span>相册</span></button>
+      <button class="coa-btn" onclick="document.getElementById('coaFile').click()"><span class="ico">📄</span><span>文件</span></button>
+    </div>
+    <input id="coaCam" type="file" accept="image/*" capture="environment" hidden onchange="onCoAInput(this)">
+    <input id="coaAlb" type="file" accept="image/*" hidden onchange="onCoAInput(this)">
+    <input id="coaFile" type="file" accept=".pdf,.doc,.docx,.xlsx,.xls,image/*" hidden onchange="onCoAInput(this)">
+    <div id="coaSrcInfo" class="hint" style="margin-top:10px;display:none"></div>
+    <img id="coaPrev" class="preview-img" style="display:none">
+    <button class="btn" id="coaRunBtn" style="margin-top:10px" onclick="runCoAReview()">⚡ 智能审查</button>
+    <div id="coaOut"></div>
+    <p class="hint" style="margin-top:12px">提示：拍照时尽量正对报告、光线均匀、文字清晰，识别更准。文件类（Excel / Word / PDF）会先在本地提取文字再审查。结果仅供辅助，请以正式检验报告为准。</p>`;
+  openSheet(html);
+}
+// 统一入口：相机/相册/文件三个 input 共用，按文件类型分流到图片或文档路径
+async function onCoAInput(inp) {
+  const f = inp.files && inp.files[0];
+  if (inp.value) inp.value = '';          // 允许重复选择同一文件
+  if (!f) return;
+  const name = f.name || '';
+  const isImg = (f.type && f.type.indexOf('image/') === 0) || /\.(png|jpe?g|gif|bmp|webp|heic|heif)$/i.test(name);
+  const out = $('coaOut'); if (out) out.innerHTML = '';
+  coaResult = null;
+  if (isImg) {
+    coaMode = 'image'; coaSrcName = name || '图片';
+    coaDocText = '';
+    const prev = $('coaPrev'); if (prev) prev.style.display = 'none';
+    previewCoA(f);
+  } else {
+    coaMode = 'text'; coaSrcName = name;
+    coaImgData = '';
+    const prev = $('coaPrev'); if (prev) prev.style.display = 'none';
+    await extractCoAText(f);
+  }
+}
+function setCoASrcInfo(t) { const el = $('coaSrcInfo'); if (el) { el.style.display = 'block'; el.textContent = t; } }
+// 图片：读入 → 等比压缩到最长边 1600px → 存 dataURL（减少上传体积、加快识别）
+function previewCoA(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const max = 1600; let w = im.width, h = im.height;
+      if (w > max || h > max) { if (w >= h) { h = Math.round(h * max / w); w = max; } else { w = Math.round(w * max / h); h = max; } }
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(im, 0, 0, w, h);
+      coaImgData = cv.toDataURL('image/jpeg', 0.85);
+      const p = $('coaPrev'); if (p) { p.src = coaImgData; p.style.display = 'block'; }
+      setCoASrcInfo('已选择图片：' + (coaSrcName || '图片') + '（点击「智能审查」开始）');
+    };
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+// 文档：客户端提取文字（Excel/Word/PDF），再交给 AI 审查
+async function extractCoAText(file) {
+  const name = file.name || '';
+  setCoASrcInfo('⏳ 正在提取文件文字：' + name + ' …');
+  try {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    let text = '';
+    if (ext === 'xlsx' || ext === 'xls') text = await extractXLSX(file);
+    else if (ext === 'docx') text = await extractDOCX(file);
+    else if (ext === 'pdf') text = await extractPDF(file);
+    else if (ext === 'doc') throw new Error('.doc 旧格式暂不支持，请另存为 .docx 或 .pdf 后重试');
+    else text = await file.text().catch(() => '');   // 兜底：尝试当作纯文本
+    text = (text || '').trim();
+    if (!text) throw new Error('未能从该文件提取到文字');
+    coaDocText = text;
+    setCoASrcInfo('✅ 已提取文字（' + text.length + ' 字）：' + name + '，点击「智能审查」开始。');
+    toast('✅ 文件文字已提取', 2500);
+  } catch (e) {
+    coaMode = ''; coaDocText = '';
+    setCoASrcInfo('⚠️ 提取失败：' + e.message);
+    toast('⚠️ ' + e.message);
+  }
+}
+// 懒加载脚本（同一 URL 只加载一次）
+const _loadedScripts = {};
+function loadScript(src) {
+  if (_loadedScripts[src]) return _loadedScripts[src];
+  _loadedScripts[src] = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = () => resolve(); s.onerror = () => reject(new Error('script load failed: ' + src));
+    document.head.appendChild(s);
+  });
+  return _loadedScripts[src];
+}
+// Excel / Word：SheetJS 已内置（XLSX）；Word 用 mammoth；PDF 用 pdf.js（均按需懒加载）
+async function extractXLSX(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  let out = '';
+  wb.SheetNames.forEach((sn) => { out += '【' + sn + '】\n' + XLSX.utils.sheet_to_csv(wb.Sheets[sn]) + '\n\n'; });
+  return out;
+}
+async function extractDOCX(file) {
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js');
+  if (typeof mammoth === 'undefined') throw new Error('Word 解析库加载失败（请检查网络）');
+  const buf = await file.arrayBuffer();
+  const res = await mammoth.extractRawText({ arrayBuffer: buf });
+  return res.value || '';
+}
+async function extractPDF(file) {
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF 解析库加载失败（请检查网络）');
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const tc = await page.getTextContent();
+    text += tc.items.map((it) => it.str).join(' ') + '\n';
+  }
+  return text;
+}
+async function runCoAReview() {
+  if (!coaMode) { toast('请先拍照、选图或选择文件'); return; }
+  if (coaMode === 'image' && !coaImgData) { toast('请先拍照或选择图片'); return; }
+  if (coaMode === 'text' && !coaDocText) { toast('请先选择文件并等待文字提取完成'); return; }
+  if (!agnesReady()) { toast('请先在「更多 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
+  const btn = $('coaRunBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'AI 审查中…'; }
+  const out = $('coaOut');
+  if (out) out.innerHTML = `<div class="report-meta">⏳ AI 正在审查，约需 10–40 秒，请勿离开…</div>`;
+  try {
+    const c = agnesCreds();
+    if (!c.key) throw new Error('no key');
+    const base = 'https://apihub.agnes-ai.com';
+    const isText = coaMode === 'text';
+    const sys = `你是药企 QC / 质量部的 CoA（检验报告 Certificate of Analysis）审查助手。${isText
+      ? '用户已提供从文件（Excel / Word / PDF）提取的 CoA 文字（可能含表格），请直接据此审查，无需 OCR。'
+      : '用户提供一张检验报告图片。请先 OCR 识别图片中的所有文字（含表格中的检验项、结果、标准限度）。'}
+1. ${isText ? '基于提供的文字' : '识别图片中的文字'}；若原文非中文，将「检验项名称」翻译为中文（name_cn），数值、单位、标准限度保持原样不翻译；若原文本就是中文，name_cn 与 name_raw 相同即可。
+2. 抽取每个检验项，判定：结果在标准范围内=「合格」；超出标准=「OOS」；无标准或无法判定（如性状描述、缺少限度）=「待确认」。
+3. 尽量提取报告抬头信息：产品/物料名称、批号、供应商、检验/报告日期（放入 meta，缺失则留空字符串）。
+只输出 JSON（不要 markdown 代码块、不要多余解释），格式：
+{"title":"报告标题","lang":"原文语言","meta":{"product":"产品/物料名","batch":"批号","supplier":"供应商","date":"日期"},"items":[{"name_cn":"中文项名","name_raw":"原文项名","result":"结果","spec":"标准限度","verdict":"合格|OOS|待确认"}],"summary":"一句话总体结论"}`;
+    const userContent = isText
+      ? [{ type: 'text', text: '以下是 CoA 文件提取的文字：\n\n' + coaDocText }]
+      : [{ type: 'text', text: '请审查这张检验报告，按要求输出 JSON。' }, { type: 'image_url', image_url: { url: coaImgData } }];
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 60000);
+    const res = await fetch(base + '/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.key },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: 'agnes-1.5-flash',
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: userContent }
+        ],
+        temperature: 0.1, max_tokens: 2000, stream: false
+      })
+    });
+    clearTimeout(to);
+    if (!res.ok) throw new Error('agnes ' + res.status);
+    const j = await res.json();
+    let content = (j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+    content = stripFence(content);
+    // 容错：截取第一个 { 到最后一个 }
+    const s = content.indexOf('{'), e = content.lastIndexOf('}');
+    if (s >= 0 && e > s) content = content.slice(s, e + 1);
+    let data;
+    try { data = JSON.parse(content); } catch (err) { throw new Error('parse'); }
+    coaResult = data;
+    renderCoAResult(data);
+    toast('✅ 审查完成', 3000); if (voiceOn) speak('检验报告审查完成');
+  } catch (e) {
+    const msg = e.message === 'parse' ? '识别结果解析失败，请换更清晰的图片或文件重试' : (e.name === 'AbortError' ? '请求超时，请重试' : 'AI 服务异常，请稍后重试');
+    if (out) out.innerHTML = `<div class="out" style="background:var(--red-soft)">${msg}</div>`;
+    toast(msg);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ 智能审查'; }
+  }
+}
+function renderCoAResult(d) {
+  const out = $('coaOut'); if (!out) return;
+  const items = Array.isArray(d.items) ? d.items : [];
+  const tagCls = (v) => v === '合格' ? 'ok' : (v === 'OOS' ? 'bad' : 'warn');
+  const oos = items.filter((x) => x.verdict === 'OOS').length;
+  const pend = items.filter((x) => x.verdict === '待确认').length;
+  const pass = items.filter((x) => x.verdict === '合格').length;
+  const m = d.meta || {};
+  let html = `<div class="report-meta" style="margin-top:14px">${esc(d.title || '检验报告')}${d.lang && d.lang !== '中文' && !/chinese/i.test(d.lang) ? ` · 原文 ${esc(d.lang)}（已译）` : ''}</div>`;
+  // 抬头信息
+  const metaBits = [];
+  if (m.product) metaBits.push(`品名：${esc(m.product)}`);
+  if (m.batch) metaBits.push(`批号：${esc(m.batch)}`);
+  if (m.supplier) metaBits.push(`供应商：${esc(m.supplier)}`);
+  if (m.date) metaBits.push(`日期：${esc(m.date)}`);
+  if (metaBits.length) html += `<div class="hint" style="margin:-2px 0 8px">${metaBits.join(' · ')}</div>`;
+  // 总览徽章
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <span class="tag ok">合格 ${pass}</span>${oos ? `<span class="tag bad">OOS ${oos}</span>` : ''}${pend ? `<span class="tag warn">待确认 ${pend}</span>` : ''}</div>`;
+  // 检验项列表
+  if (!items.length) { html += `<div class="out">未能识别出检验项，请换更清晰的图片或从「工具箱」手动录入。</div>`; }
+  else {
+    html += `<div class="coa-items">`;
+    items.forEach((it) => {
+      const cn = esc(it.name_cn || it.name_raw || '检验项');
+      const raw = it.name_raw && it.name_cn && it.name_raw !== it.name_cn ? `<span class="coa-raw">${esc(it.name_raw)}</span>` : '';
+      html += `<div class="coa-item">
+        <div class="coa-item-top"><div class="coa-name">${cn}${raw}</div><span class="tag ${tagCls(it.verdict)}">${esc(it.verdict || '待确认')}</span></div>
+        <div class="coa-vals"><span class="coa-res">${esc(it.result || '—')}</span><span class="coa-spec">标准 ${esc(it.spec || '—')}</span></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  if (d.summary) html += `<div class="out" style="margin-top:12px">${esc(d.summary)}</div>`;
+  html += `<button class="btn secondary" style="margin-top:12px" onclick="copyCoA()">复制结果文本</button>`;
+  out.innerHTML = html;
+}
+function copyCoA() {
+  if (!coaResult) return;
+  const d = coaResult, m = d.meta || {};
+  let t = `【CoA 审查】${d.title || ''}\n`;
+  const bits = [];
+  if (m.product) bits.push('品名:' + m.product);
+  if (m.batch) bits.push('批号:' + m.batch);
+  if (m.supplier) bits.push('供应商:' + m.supplier);
+  if (m.date) bits.push('日期:' + m.date);
+  if (bits.length) t += bits.join(' · ') + '\n';
+  t += '\n';
+  (d.items || []).forEach((it) => { t += `${it.name_cn || it.name_raw}: ${it.result || '—'}（标准 ${it.spec || '—'}）→ ${it.verdict}\n`; });
+  if (d.summary) t += '\n结论：' + d.summary;
+  fallbackCopy(t); toast('已复制结果文本');
 }
 
 /* ============================================================
@@ -2336,13 +2800,13 @@ function useTemplate(id) {
   const toks = extractTokens(t.raw);
   let html = `<div class="grabber"></div>
     <div class="sheet-head"><button class="back-btn" onclick="openTemplates()">← 返回模板</button><h2>套用模板：${esc(t.title)}</h2></div>
-    <p class="hint">填入变量，生成带时间线的实验记录。</p>
-    <p class="warn-preset">⚠ 此为常规实验模板，步骤来源于公开 protocol，请自行确认后使用。</p>`;
+    <p class="hint">填入变量，生成带时间线的实验记录。</p>`;
+  if (t.preset) html += `<p class="warn-preset">⚠ 此为常规实验模板，步骤来源于公开 protocol，请自行确认后使用。</p>`;
   const prefill = { '样本名': agnesSample, '批号': agnesLot };
   toks.forEach((tk, i) => { const v = prefill[tk] || ''; html += `<div class="field"><label>${esc(tk)}</label><input id="tv_${i}" value="${esc(v)}" placeholder="填入${esc(tk)}"${v ? ' data-auto="1"' : ''}></div>`; });
   html += `<div class="field"><label>标题</label><input id="tfTitle" value="${esc(t.title)}"></div>`;
   html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
-  html += `<div class="field"><label>起始时间（可选，用于重排时间线）</label><input id="tfStart" type="time"></div>`;
+  if (/\d{1,2}:\d{2}/.test(t.raw)) html += `<div class="field"><label>起始时间（可选；把模板里的 HH:MM 时间点整体平移到你开始做的时刻）</label><input id="tfStart" type="time"></div>`;
   html += `<div id="tfPreview" class="step" style="margin-top:6px"></div>`;
   if (t.consumables && t.consumables.length) {
     html += `<div class="tpl-consumables"><div class="tpl-ctitle">本实验推荐耗材 <span class="tpl-csub">（可一键询价）</span></div>`;
@@ -2384,19 +2848,60 @@ function generateFromTemplate(id) {
   toast('已生成记录，可继续编辑');
 }
 function newTemplate() {
+  const types = ['细胞培养', '细胞功能', '细胞转染', '免疫荧光', '蛋白', '分子', 'PCR', '病理组织', '其他'];
+  const opts = types.map((t) => `<option value="${t}">${t}</option>`).join('');
   let html = `<div class="grabber"></div>
     <div class="sheet-head"><button class="back-btn" onclick="openTemplates()">← 返回</button><h2>新建模板</h2></div>
     <div class="field"><label>模板名称</label><input id="ntTitle" placeholder="如：每周外泌体纯化"></div>
-    <div class="field"><label>步骤文本</label><textarea id="ntRaw" placeholder="同实验记录写法，可多句用；分隔"></textarea></div>
-    <button class="btn" onclick="saveNewTemplate()">保存模板</button>`;
+    <div class="field"><label>实验分类</label><select id="ntType">${opts}</select></div>
+    <div class="field"><label>步骤文本</label><textarea id="ntRaw" placeholder="如：8:00 取 {{样本名}}；8:30 加入 100μL 缓冲液；10:00 离心 4000g 10min" style="min-height:96px"></textarea></div>
+    <p class="hint">写法：时间用 <b>HH:MM</b>（如 8:00）；变量用 <b>{{样本名}}</b> / <b>{{批号}}</b>（套用时自动提示填写）；多步用 <b>；</b> 分隔。留出变量便于复用。</p>
+    <div class="tpl-consumables">
+      <div class="tpl-ctitle">推荐耗材 <span class="tpl-csub">（套用后可一键询价）</span></div>
+      <div id="ntConsumables"></div>
+      <button class="btn secondary tpl-cbtn" type="button" onclick="addTplConsumableRow()">＋ 添加耗材</button>
+    </div>
+    <div id="ntPreview" class="step" style="margin-top:8px"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn ghost" onclick="openTemplates()">取消</button>
+      <button class="btn" onclick="saveNewTemplate()">保存模板</button>
+    </div>`;
   openSheet(html);
+  const raw = $('ntRaw'); if (raw) raw.addEventListener('input', updateNewTplPreview);
+  updateNewTplPreview();
+}
+function addTplConsumableRow(name, brand, cat) {
+  const box = $('ntConsumables'); if (!box) return;
+  const row = document.createElement('div');
+  row.className = 'tpl-crow-edit';
+  row.innerHTML = `<input class="ci" placeholder="名称" value="${esc(name || '')}">
+    <input class="ci" placeholder="品牌" value="${esc(brand || '')}">
+    <input class="ci" placeholder="货号" value="${esc(cat || '')}">
+    <button class="ci-del" type="button" onclick="this.parentNode.remove()">✕</button>`;
+  box.appendChild(row);
+}
+function updateNewTplPreview() {
+  const el = $('ntRaw'); const box = $('ntPreview');
+  if (!el || !box) return;
+  const st = structure(el.value);
+  box.innerHTML = '<div class="section-title">预览（步骤解析）</div>' + (st.length
+    ? st.map((s) => `<div class="tl-item"><b>${esc(s.time || '')}</b> ${esc(s.action || '')} ${esc(s.material || '')}${s.amount ? ' ' + esc(s.amount) + esc(s.unit || '') : ''}${s.param ? ' · ' + esc(s.param) : ''}</div>`).join('')
+    : '<div class="meta">暂无步骤</div>');
 }
 function saveNewTemplate() {
   const title = ($('ntTitle').value || '').trim();
   const raw = ($('ntRaw').value || '').trim();
-  if (!title || !raw) { toast('请填全'); return; }
+  if (!title || !raw) { toast('请填全名称和步骤'); return; }
+  const type = ($('ntType') ? $('ntType').value : '其他') || '其他';
+  const consumables = [];
+  document.querySelectorAll('#ntConsumables .tpl-crow-edit').forEach((r) => {
+    const ins = r.querySelectorAll('input');
+    const name = (ins[0].value || '').trim();
+    if (!name) return;
+    consumables.push({ name, brand: (ins[1].value || '').trim(), cat: (ins[2].value || '').trim() });
+  });
   const tpls = load(STORE.templates, []);
-  tpls.push({ id: uid('tp'), title, raw });
+  tpls.push({ id: uid('tp'), title, raw, type, consumables });
   save(STORE.templates, tpls);
   toast('已保存'); openTemplates();
 }
@@ -3036,6 +3541,7 @@ $('fab').addEventListener('click', () => {
 $('sheetBackdrop').addEventListener('click', closeSheet);
 $('modalBackdrop').addEventListener('click', closeModal);
 window.addEventListener('scroll', onScrollTitle, { passive: true });
+window.addEventListener('resize', () => { _barBaseH = 0; _titleF = -1; updateTitleScale(); }, { passive: true });
 
 /* ---------------- 启动 ---------------- */
 seed();

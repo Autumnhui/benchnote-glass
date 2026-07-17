@@ -568,6 +568,8 @@ textarea{min-height:96px;resize:vertical}
 .bp-row{font-size:12.5px;color:var(--ink);padding:3px 0;line-height:1.5}
 .bp-row.ok{color:var(--green);font-weight:600}
 .bp-row.muted{color:var(--muted)}
+.bp-row.warn{color:#c77700;font-weight:600}
+.more-link{text-align:center;color:var(--blue);font-size:13px;font-weight:600;padding:12px 0;cursor:pointer}
 .bp-ok{color:var(--green)}
 .bp-skip{color:var(--orange)}
 select.sel{flex:1;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.7);border-radius:12px;padding:11px 12px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;box-shadow:0 1px 0 rgba(255,255,255,.6) inset}
@@ -639,3 +641,10 @@ select.sel:focus{border-color:var(--accent-2)}
   .toast{transition:opacity .2s ease}
   .inquire-mini{transition-duration:0s !important}
 }
+
+/* ⑪ 字距/行高优化：字号越大字距越紧，建立层级（不改动 font-family） */
+.sheet h2, .modal h2 { letter-spacing: -0.3px; }
+.card h3 { letter-spacing: -0.2px; line-height: 1.3; }
+.list-row .lr-title { letter-spacing: -0.1px; }
+.section-title { letter-spacing: 0.2px; }
+.api-row-title { letter-spacing: -0.1px; }

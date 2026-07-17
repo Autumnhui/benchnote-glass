@@ -66,8 +66,9 @@ const EMBED = {
   xfApiKey: _obfDec('dwtWV199UUZWaEgEbFZVC11EOVABBAUgUQtTDnZURgQ='),
   xfApiSecret: _obfDec('GFk/GicadQ4rGDVXEjUEWyhBFkp9AGE4fDkyEgACOg0=')
 };
-function getSettings() { const s = Object.assign({ voiceOn: false, agnesKey: '', xfAppid: '', xfApiKey: '', xfApiSecret: '' }, load(STORE.settings, {})); return s; }
+function getSettings() { const s = Object.assign({ voiceOn: false, agnesKey: '', xfAppid: '', xfApiKey: '', xfApiSecret: '', expDays: 30, notifyExp: false, lastNotifyDate: '' }, load(STORE.settings, {})); return s; }
 function setSettings(s) { save(STORE.settings, s); }
+function expDays() { const d = Number(getSettings().expDays); return (d && d > 0) ? d : 30; }
 function uid(p) { return p + Date.now() + Math.floor(Math.random() * 1000); }
 
 /* ---------------- 种子数据 ---------------- */
@@ -435,7 +436,7 @@ function fmtDate(iso) {
 function reagStatus(r) {
   const days = daysUntil(r.expiry);
   if (days < 0) return { key: 'bad', text: '已过期' };
-  if (days <= 30) return { key: 'warn', text: '临期' };
+  if (days <= expDays()) return { key: 'warn', text: '临期' };
   if (Number(r.qty) <= Number(r.min || 0)) return { key: 'warn', text: '需补货' };
   return { key: 'ok', text: '正常' };
 }
@@ -534,7 +535,7 @@ function setHeader() {
     $('viewTitle').textContent = '实验记录'; $('viewSub').textContent = `共 ${exps.length} 条`;
   } else if (currentView === 'reagents') {
     $('viewTitle').textContent = '试剂/耗材 库存管理';
-    $('viewSub').textContent = reagSeg === 'reag' ? `共 ${reags.length} 种` : `共 ${load(STORE.samples, []).length} 份`;
+    $('viewSub').textContent = reagSeg === 'freezer' ? `共 ${load(STORE.samples, []).length} 份` : `共 ${reags.length} 种`;
   } else if (currentView === 'tools') {
     $('viewTitle').textContent = '工具箱'; $('viewSub').textContent = '实验常用计算与小工具';
   } else if (currentView === 'more') {
@@ -670,7 +671,7 @@ function renderOverview() {
   const reags = load(STORE.reag, []);
   const weekAgo = Date.now() - 7 * 86400000;
   const weekExp = exps.filter((e) => new Date(e.createdAt).getTime() >= weekAgo).length;
-  const expiring = reags.filter((r) => { const d = daysUntil(r.expiry); return d <= 30 && d >= 0; }).length;
+  const expiring = reags.filter((r) => { const d = daysUntil(r.expiry); return d <= expDays() && d >= 0; }).length;
   const expired = reags.filter((r) => daysUntil(r.expiry) < 0).length;
   const low = reags.filter((r) => Number(r.qty) <= Number(r.min || 0)).length;
 
@@ -712,6 +713,7 @@ function renderOverview() {
   exps.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3).forEach((e) => {
     html += `<div class="card tap" onclick="openExpSheet('${e.id}')"><div class="row1"><h3>${esc(e.title)}</h3></div><div class="meta">${fmtDate(e.createdAt)} · ${e.steps.length} 个步骤</div><div class="snippet">${esc(e.raw)}</div></div>`;
   });
+  if (exps.length > 3) html += `<div class="more-link" onclick="switchView('experiments')">查看全部 ${exps.length} 条实验 ›</div>`;
   if (!exps.length) {
     html += `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 3v18"/><path d="M11 8h5"/><path d="M11 12h5"/><path d="M11 16h3"/></svg><p><b>还没有实验记录</b></p><p>用语音或文字记录第一条</p><button class="btn" style="margin-top:14px" onclick="openExpSheet()">+ 新建实验记录</button></div>`;
   }
@@ -855,13 +857,13 @@ function renderReagents() {
       const pinMark = r.pinned ? ' · 置顶' : '';
       html += `<div class="${cls}" onclick="${click}">
         ${chk}
-        <div class="row1"><h3>${esc(r.name)}</h3>${st.key === 'ok' ? (r.pinned ? '<span class="tag ok">置顶</span>' : '') : `<span class="tag ${tagCls}">${st.text}${pinMark}</span>`}</div>
+        <div class="row1"><h3>${esc(r.name)}</h3>${st.key === 'ok' ? (r.pinned ? '<span class="tag info">置顶</span>' : '') : `<span class="tag ${tagCls}">${st.text}${pinMark}</span>`}</div>
         <div class="meta-row"><div class="meta">库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>${inquireBtn ? `<div class="meta-act">${inquireBtn}</div>` : ''}</div>
         <div class="meta meta-expiry">效期 ${esc(r.expiry)} · 货号 ${esc(r.lot)}</div>
       </div>`;
     });
   }
-  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
+  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= expDays() && daysUntil(r.expiry) >= 0));
   if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
@@ -970,7 +972,7 @@ function renderExpiryCalendar() {
     }
   });
   if (!any) html += emptyState(calYear + '年' + (calMonth+1) + '月无到期试剂', '');
-  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= 30 && daysUntil(r.expiry) >= 0));
+  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= expDays() && daysUntil(r.expiry) >= 0));
   if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
@@ -1071,7 +1073,7 @@ function fmDeleteSel() {
   const n = freezerSel.size;
   if (!confirm(`删除选中的 ${n} 份样本？此操作不可撤销。`)) return;
   const samples = load(STORE.samples, []).filter((s) => !freezerSel.has(s.id));
-  save(STORE.samples, samples); freezerSel.clear(); renderFreezer(); toast('已删除 ' + n + ' 份');
+  save(STORE.samples, samples); freezerSel.clear(); freezerMulti = false; renderFreezer(); toast('已删除 ' + n + ' 份');
 }
 function fmMoveSel() { if (!freezerSel.size) { toast('未选中任何样本'); return; } openFreezerMove(); }
 
@@ -1311,6 +1313,21 @@ function renderMore() {
       ${r.link ? '<a class="api-link" href="' + r.link.url + '" target="_blank" rel="noopener">' + r.link.label + ' ›</a>' : ''}
     </div>`;
   });
+  html += '<div class="section-title">提醒与偏好</div>';
+  const notifyOn = st.notifyExp && notifySupported() && (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+  html += `<div class="card">
+    <div class="field"><label>临期阈值（天）</label>
+      <input id="setExpDays" type="number" min="1" max="365" value="${st.expDays || 30}">
+      <div class="help">效期在此天数内的试剂标记为「临期」并计入提醒（默认 30）。</div>
+    </div>
+    <button class="btn secondary" onclick="saveExpDays()">保存阈值</button>
+  </div>`;
+  html += `<div class="list-row" onclick="${notifyOn ? 'setNotify(false)' : 'enableExpNotify()'}">
+    <div class="lr-ico">🔔</div>
+    <div class="lr-main"><div class="lr-title">临期提醒</div><div class="lr-sub">${notifySupported() ? (notifyOn ? '已开启，每天检查一次临期/过期' : '开启后每天推送临期与过期通知') : '当前浏览器不支持通知'}</div></div>
+    <span class="tag ${notifyOn ? 'ok' : 'muted'}">${notifyOn ? '已开启' : '未开启'}</span>
+  </div>`;
+  html += `<button class="btn ghost" style="margin-top:8px" onclick="testExpNotify()">🔔 测试通知</button>`;
   html += '<div class="section-title">数据备份</div>';
   html += `<button class="btn" onclick="exportData()">📤 导出全部数据</button>
     <button class="btn secondary" style="margin-top:10px" onclick="pickImport()">📥 导入数据</button>
@@ -1852,10 +1869,13 @@ function parseReagLines(text) {
 function renderReagBatchPreview() {
   const box = $('rbPreview'); if (!box) return;
   const arr = parseReagLines(($('rbText') || {}).value || '');
-  const total = arr.length + reagExcelRows.length;
+  const all = arr.concat(reagExcelRows);
+  const total = all.length;
+  const dupCount = all.filter((r) => load(STORE.reag, []).some((x) => x.name === r.name && x.lot === r.lot)).length;
   let inner = '';
   if (reagExcelRows.length) inner += `<div class="bp-row ok">📊 Excel：${reagExcelRows.length} 条</div>`;
   if (arr.length) inner += arr.slice(0, 5).map((r) => `<div class="bp-row">${esc(r.name)} · ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 5 ? `<div class="bp-row muted">…文本共 ${arr.length} 条</div>` : '');
+  if (dupCount) inner += `<div class="bp-row warn">⚠ ${dupCount} 条与已有试剂同名同批号，将更新而非新增</div>`;
   if (!total) inner = '<div class="bp-row muted">尚未解析到试剂（可粘贴文本或导入 Excel）</div>';
   box.innerHTML = inner;
   const c = $('rbConfirm'); if (c) c.textContent = '导入 ' + total + ' 条';
@@ -2038,10 +2058,11 @@ function inquireReag(id) {
 /* ② 批量询价（来自效期日历采购清单） */
 function inquireExpiring() {
   const reags = load(STORE.reag, []);
+  const ed = expDays();
   const groups = [
     ['已过期', (r) => daysUntil(r.expiry) < 0],
     ['7 天内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && d <= 7; }],
-    ['30 天内到期', (r) => { const d = daysUntil(r.expiry); return d > 7 && d <= 30; }],
+    [`${ed} 天内到期`, (r) => { const d = daysUntil(r.expiry); return d > 7 && d <= ed; }],
     ['需补货', (r) => Number(r.qty) <= Number(r.min || 0)]
   ];
   const items = [];
@@ -3381,6 +3402,54 @@ function applyImport(mode) {
   closeModal(); toast('导入完成'); renderAll();
 }
 
+/* ---------------- 临期通知（PWA Notification） ---------------- */
+function notifySupported() { return ('Notification' in window) && ('serviceWorker' in navigator); }
+function enableExpNotify() {
+  if (!notifySupported()) { toast('当前浏览器不支持通知'); return; }
+  if (Notification.permission === 'granted') { setNotify(true); return; }
+  if (Notification.permission === 'denied') { toast('通知权限已被拒绝，请在浏览器设置中开启'); return; }
+  Notification.requestPermission().then((p) => {
+    if (p === 'granted') setNotify(true);
+    else toast('未授权通知，无法开启临期提醒');
+  });
+}
+function setNotify(on) {
+  const s = getSettings(); s.notifyExp = on; setSettings(s);
+  toast(on ? '已开启临期提醒' : '已关闭临期提醒');
+  if (on) checkExpNotify();
+}
+function checkExpNotify() {
+  const s = getSettings();
+  if (!s.notifyExp || !notifySupported() || Notification.permission !== 'granted') return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (s.lastNotifyDate === today) return; // 每天最多一次
+  const ed = expDays();
+  const reags = load(STORE.reag, []);
+  const need = reags.filter((r) => { const d = daysUntil(r.expiry); return (d >= 0 && d <= ed) || d < 0; });
+  if (need.length) {
+    const expired = need.filter((r) => daysUntil(r.expiry) < 0).length;
+    const title = expired ? `⚠️ ${expired} 项已过期、${need.length - expired} 项临期` : `⏰ ${need.length} 项试剂临期`;
+    try {
+      navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, {
+        body: need.slice(0, 4).map((r) => r.name).join('、') + (need.length > 4 ? ' 等' : ''),
+        icon: './icon.svg', tag: 'bench-exp', requireInteraction: false
+      })).catch(() => new Notification(title, { icon: './icon.svg' }));
+    } catch (e) { try { new Notification(title, { icon: './icon.svg' }); } catch (_) {} }
+  }
+  const ns = getSettings(); ns.lastNotifyDate = today; setSettings(ns);
+}
+function testExpNotify() {
+  if (!notifySupported() || Notification.permission !== 'granted') { toast('请先开启临期提醒并授权'); return; }
+  try { new Notification('✅ 实验台通知测试', { body: '临期提醒工作正常', icon: './icon.svg' }); } catch (e) { toast('通知发送失败'); }
+}
+function saveExpDays() {
+  const el = $('setExpDays'); if (!el) return;
+  const v = Number(el.value);
+  if (!v || v < 1) { toast('请输入有效天数（≥1）'); return; }
+  const s = getSettings(); s.expDays = v; setSettings(s);
+  toast('临期阈值已设为 ' + v + ' 天'); renderAll();
+}
+
 /* ============================================================
    首次引导
    ============================================================ */
@@ -3532,6 +3601,22 @@ function closeModal() { $('modal').classList.remove('show'); $('modalBackdrop').
   sheet.addEventListener('pointerdown', onDown);
 })();
 
+/* ---------------- Apple 触觉反馈：动作按钮按下/抬起轻震（⑩） ----------------
+   仅动作类控件在 pointerdown 给 8ms、pointerup 给 6ms；导航/列表/卡片不震，
+   避免过度反馈（Apple：reserve for meaningful moments）。桌面/不支持设备静默跳过。 */
+(function () {
+  if (!navigator.vibrate) return;
+  var SEL = '.btn, .mini-btn, .fab, .sheet-close, .inquire-mini, .coa-btn, .sheet-fab, .back-btn';
+  document.addEventListener('pointerdown', function (e) {
+    var el = e.target && e.target.closest && e.target.closest(SEL);
+    if (el && !el.disabled) { try { navigator.vibrate(8); } catch (_) {} }
+  }, { passive: true });
+  document.addEventListener('pointerup', function (e) {
+    var el = e.target && e.target.closest && e.target.closest(SEL);
+    if (el && !el.disabled) { try { navigator.vibrate(6); } catch (_) {} }
+  }, { passive: true });
+})();
+
 /* ---------------- 事件绑定 ---------------- */
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchView(t.dataset.view)));
 $('fab').addEventListener('click', () => {
@@ -3567,3 +3652,4 @@ migrateExperiments();
 maybeOnboard();
 renderAll();
 updateTitleScale();
+setTimeout(checkExpNotify, 1500);

@@ -11,13 +11,168 @@ const STORE = {
   exp: 'bench.exp', reag: 'bench.reag', samples: 'bench.samples', boxes: 'bench.boxes',
   templates: 'bench.templates', instruments: 'bench.instruments',
   incidents: 'bench.incidents', results: 'bench.results', todos: 'bench.todos',
-  safety: 'bench.safety',
+  safety: 'bench.safety', units: 'bench.units', boxMeta: 'bench.boxMeta',
   seeded: 'bench.seeded', settings: 'bench.settings'
 };
 
+/* ---------------- 自定义单位管理 ---------------- */
+const DEFAULT_UNITS = ['瓶','支','L','mL','μL','g','mg','kg','盒','袋','包','箱','片','粒','管','个','对','次','板','条','卷','套'];
+function getUserUnits() { return load(STORE.units, []); }
+function saveUserUnits(list) { save(STORE.units, list); }
+function getAllUnits() {
+  const custom = getUserUnits();
+  const all = [...DEFAULT_UNITS];
+  custom.forEach((u) => { if (!all.includes(u)) all.push(u); });
+  return all;
+}
+function unitListHtml(extra) {
+  const units = getAllUnits();
+  if (extra && !units.includes(extra)) units.unshift(extra);
+  return `<datalist id="unitList">${units.map((u) => `<option value="${u}">`).join('')}</datalist>`;
+}
+function openUnitManager() {
+  const list = getUserUnits();
+  let html = `<div class="grabber"></div><h2>管理自定义单位</h2><p class="hint">添加实验室常用单位，预置单位不可删除。</p>
+    <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">
+      ${getAllUnits().map((u) => `<span class="unit-tag${DEFAULT_UNITS.includes(u)?'':' custom'}" data-unit="${esc(u)}" onclick="${DEFAULT_UNITS.includes(u)?'':'removeUnit(this.dataset.unit)'}">${esc(u)}${DEFAULT_UNITS.includes(u)?'':' ✕'}</span>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px"><input id="newUnitInput" placeholder="输入新单位" style="flex:1"><button class="btn" onclick="addUnit()">添加</button></div>
+    <div class="btn-row" style="margin-top:12px"><button class="btn secondary" onclick="closeSheet()">完成</button></div>`;
+  openSheet(html);
+}
+function addUnit() {
+  const v = $('newUnitInput').value.trim();
+  if (!v) return;
+  const list = getUserUnits();
+  if (list.includes(v) || DEFAULT_UNITS.includes(v)) { toast('单位已存在'); return; }
+  list.push(v); saveUserUnits(list); openUnitManager();
+}
+function removeUnit(u) {
+  const list = getUserUnits().filter((x) => x !== u);
+  saveUserUnits(list); openUnitManager();
+}
+
+/* ---------------- IndexedDB 存储层（兼容 load/save 同步接口） ---------------- */
+// 启动时从 IndexedDB 加载全部数据到内存 _cache，save 同步写 _cache + 异步写 IndexedDB，
+// load 从 _cache 同步读取。现有 load/save 调用处零改动。
+const DB_NAME = 'BenchNoteDB', DB_VER = 1, DB_STORE = 'data';
+let _dbReady = false, _db = null;
+const _cache = {};  // key -> JSON string（与 localStorage 格式一致）
+
+function _dbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function _dbGetAll(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const store = tx.objectStore(DB_STORE);
+    const req = store.openCursor();
+    const map = {};
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) { map[cursor.key] = cursor.value; cursor.continue(); }
+      else resolve(map);
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function _dbPut(db, key, val) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    const req = tx.objectStore(DB_STORE).put(val, key);
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function _dbDel(db, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    const req = tx.objectStore(DB_STORE).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// 页面启动时调用：从 IndexedDB 加载全量数据到 _cache，回退到 localStorage
+async function initDB() {
+  try {
+    _db = await _dbOpen();
+    const data = await _dbGetAll(_db);
+    // 把 IndexedDB 数据加载到 _cache
+    Object.keys(data).forEach((k) => { _cache[k] = data[k]; });
+    // 对 _cache 中没有但 localStorage 中有的 key，做一次性迁移
+    const allKeys = Object.values(STORE).concat(['bench.quickTools']);
+    allKeys.forEach((k) => {
+      if (!(k in _cache)) {
+        try {
+          const v = localStorage.getItem(k);
+          if (v != null) { _cache[k] = v; _dbPut(_db, k, v).catch(() => {}); }
+        } catch (e) { /* ignore */ }
+      }
+    });
+    _dbReady = true;
+  } catch (e) {
+    console.warn('IndexedDB 不可用，回退 localStorage', e);
+    _dbReady = false;
+  }
+}
+
+// 兼容现有 load(key, fallback) 同步接口
 function load(key, fallback) {
-  try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
-  catch (e) { return fallback; }
+  // 优先从 _cache 读取
+  if (key in _cache) {
+    try { return JSON.parse(_cache[key]); } catch (e) { return fallback; }
+  }
+  // 无论 _dbReady 与否，都 fallback 到 localStorage
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    if (v != null) {
+      // 顺便补回 _cache，加速后续读取
+      _cache[key] = localStorage.getItem(key);
+      return v;
+    }
+    return fallback;
+  } catch (e) { return fallback; }
+}
+
+// 兼容现有 save(key, val) 同步接口
+function save(key, val) {
+  const str = JSON.stringify(val);
+  // 同步写 _cache（无论 _dbReady 与否，保证页面内一致性）
+  _cache[key] = str;
+  // 同步写 localStorage（兼容层，也用于未加载完的场景）
+  try { localStorage.setItem(key, str); } catch (e) { /* quota 超限忽略 */ }
+  // 异步写 IndexedDB
+  if (_dbReady && _db) {
+    _dbPut(_db, key, str).catch((e) => console.warn('IndexedDB 写入失败', e));
+  }
+}
+
+// 页面启动时等 IndexedDB 就绪
+let _dbInitPromise = null;
+function ensureDB() {
+  if (!_dbInitPromise) {
+    // IndexedDB 超时兜底：3 秒后若仍未成功，标记为不启用，让 load/save 走 localStorage
+    setTimeout(() => {
+      if (!_dbReady) {
+        console.warn('IndexedDB 初始化超时，回退 localStorage');
+        _dbReady = false;
+      }
+    }, 3000);
+    _dbInitPromise = initDB();
+  }
+  return _dbInitPromise;
 }
 
 /* 全部工具与模块（首页快捷工具从中挑选，最多 8 个） */
@@ -49,7 +204,6 @@ function getQuickTools() {
   return list.length ? list : DEFAULT_QUICK.map((k) => map[k]).filter(Boolean);
 }
 
-function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 // 内置凭证（Agnes / 讯飞）以混淆形式存放，运行时还原后浏览器直连官方接口，不再依赖任何代理。
 // 说明：以下仅为混淆（XOR+base64），并非加密——可防止明文泄露，但前端仍可反解；适合自用场景。
 const _OBF_SALT = 'B3nchN0te_xf_agnes_2024';
@@ -295,8 +449,8 @@ function ensureTemplateDefaults() {
 }
 /* 模板变量迁移：把旧版默认模板升级为含 {{变量}} 的版本，并补齐 tp4（仅执行一次） */
 function migrateTemplates() {
-  if (localStorage.getItem('bench.tplMigrated')) return;
-  localStorage.setItem('bench.tplMigrated', '1');
+  if (load('bench.tplMigrated', false)) return;
+  save('bench.tplMigrated', true);
   const tpls = load(STORE.templates, []);
   const tokenMap = {
     tp1: '14:00 取{{样本名}} 2 mL 批号 {{批号}} 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
@@ -310,8 +464,8 @@ function migrateTemplates() {
 }
 /* 模板耗材迁移：给已有模板补上 consumables 字段（仅执行一次） */
 function migrateTemplateConsumables() {
-  if (localStorage.getItem('bench.tplConsumables')) return;
-  localStorage.setItem('bench.tplConsumables', '1');
+  if (load('bench.tplConsumables', false)) return;
+  save('bench.tplConsumables', true);
   const tpls = load(STORE.templates, []);
   let changed = false;
   tpls.forEach((t) => {
@@ -323,8 +477,8 @@ function migrateTemplateConsumables() {
 /* 预设模板迁移：把平台预设模板（preset:true，爬取自破土狗等公开 protocol）补齐到
    用户模板库；并为旧模板补上 type 字段，便于按类型分组（仅执行一次） */
 function migratePresetTemplates() {
-  if (localStorage.getItem('bench.tplPreset')) return;
-  localStorage.setItem('bench.tplPreset', '1');
+  if (load('bench.tplPreset', false)) return;
+  save('bench.tplPreset', true);
   const tpls = load(STORE.templates, []);
   const have = new Set(tpls.map((t) => t.id));
   let changed = false;
@@ -336,16 +490,39 @@ function migratePresetTemplates() {
 }
 /* 实验记录标签迁移：给内置示例记录补上标签，便于筛选演示（仅执行一次） */
 function migrateExperiments() {
-  if (localStorage.getItem('bench.expMigrated')) return;
-  localStorage.setItem('bench.expMigrated', '1');
+  if (load('bench.expMigrated', false)) return;
+  save('bench.expMigrated', true);
   const exps = load(STORE.exp, []);
   const map = { e1: ['外泌体', '纯化'], e2: ['层析', '纯化'] };
   let changed = false;
   exps.forEach((e) => { if (map[e.id] && !Array.isArray(e.tags)) { e.tags = map[e.id]; changed = true; } });
   if (changed) save(STORE.exp, exps);
 }
+/* 试剂数据迁移：旧单条字段 → lots 数组 */
+function migrateReagLots() {
+  if (load('bench.reagMigrated', false)) return;
+  const reags = load(STORE.reag, []);
+  let changed = false;
+  reags.forEach((r) => {
+    if (r.lots && r.lots.length) return;
+    r.lots = [{
+      id: uid('l'),
+      lot: r.lot || '',
+      batch: r.batch || '',
+      qty: Number(r.qty) || 0,
+      unit: r.unit || '瓶',
+      location: r.location || '',
+      expiry: r.expiry || '',
+      opened: '',
+      status: '未使用'
+    }];
+    changed = true;
+  });
+  if (changed) save(STORE.reag, reags);
+  save('bench.reagMigrated', true);
+}
 function seed() {
-  if (localStorage.getItem(STORE.seeded)) return;
+  if (load(STORE.seeded, false)) return;
   const experiments = [
     { id: 'e1', title: '外泌体浓缩与缓冲液置换', createdAt: '2026-07-13T14:05:00', operator: '实验员',
       raw: '14:00 取外泌体样本 2 mL 批号 EV-2607 转入超滤管；15:00 4000 g 离心 10 min 收集截留液；16:00 缓冲液置换 3 次 每次 500 μL PBS',
@@ -363,11 +540,22 @@ function seed() {
       ] }
   ];
   const reagents = [
-    { id: 'r1', name: '超滤管 100kD', lot: 'UF2603', qty: 3, unit: '支', location: '4℃柜A', expiry: '2027-01-10', min: 2, supplier: 'Millipore' },
-    { id: 'r2', name: 'PBS 缓冲液', lot: 'PB2605', qty: 2, unit: 'L', location: '4℃柜A', expiry: '2026-07-20', min: 1, supplier: '自配' },
-    { id: 'r3', name: '蛋白酶K', lot: 'PK2512', qty: 1, unit: '支', location: '-20℃冰箱', expiry: '2026-07-02', min: 1, supplier: 'Thermo' },
-    { id: 'r4', name: '色谱填料 Capto', lot: 'CM2601', qty: 1, unit: 'mL', location: '4℃柜B', expiry: '2027-03-01', min: 2, supplier: 'Cytiva' },
-    { id: 'r5', name: '移液器吸头 200μL', lot: 'TP2606', qty: 500, unit: '个', location: '常温柜', expiry: '2028-05-01', min: 100, supplier: 'Axygen' }
+    { id: 'r1', name: '超滤管 100kD', min: 2, supplier: 'Millipore', lots: [
+      { id: 'l1', lot: 'UF2603', batch: '', qty: 3, unit: '支', location: '4℃柜A', expiry: '2027-01-10', opened: '', status: '未使用' }
+    ]},
+    { id: 'r2', name: 'PBS 缓冲液', min: 1, supplier: '自配', lots: [
+      { id: 'l2', lot: 'PB2605', batch: 'B001', qty: 2, unit: 'L', location: '4℃柜A', expiry: '2026-07-20', opened: '', status: '在用' }
+    ]},
+    { id: 'r3', name: '蛋白酶K', min: 1, supplier: 'Thermo', lots: [
+      { id: 'l3', lot: 'PK2512', batch: '', qty: 1, unit: '支', location: '-20℃冰箱', expiry: '2026-07-02', opened: '', status: '未使用' }
+    ]},
+    { id: 'r4', name: '色谱填料 Capto', min: 2, supplier: 'Cytiva', lots: [
+      { id: 'l4', lot: 'CM2601', batch: 'C2401', qty: 0.5, unit: 'mL', location: '4℃柜B', expiry: '2027-03-01', opened: '2026-06-15', status: '在用' },
+      { id: 'l5', lot: 'CM2601', batch: 'C2402', qty: 1, unit: 'mL', location: '4℃柜B', expiry: '2027-09-01', opened: '', status: '未使用' }
+    ]},
+    { id: 'r5', name: '移液器吸头 200μL', min: 100, supplier: 'Axygen', lots: [
+      { id: 'l6', lot: 'TP2606', batch: '', qty: 500, unit: '个', location: '常温柜', expiry: '2028-05-01', opened: '', status: '未使用' }
+    ]}
   ];
   const samples = [
     { id: 's1', name: 'pET28a 质粒', type: '质粒', box: 'B1', row: 'A', col: 1, expiry: '2027-01-01', note: '浓度 320 ng/μL' },
@@ -397,13 +585,14 @@ function seed() {
   save(STORE.incidents, []);
   save(STORE.results, results);
   save(STORE.todos, todos);
-  localStorage.setItem(STORE.seeded, '1');
+  save(STORE.seeded, true);
 }
 
 /* ---------------- 状态 ---------------- */
 let currentView = 'overview';
 let reagSeg = 'reag';
 let reagFilter = 'all';
+let reagLotFilter = 'all';
 let reagSearch = '';
 let calYear, calMonth; // 效期日历：默认当前月（calMonth 0-based）
 let freezerBox = 'B1';
@@ -433,13 +622,47 @@ function fmtDate(iso) {
   const d = new Date(iso);
   return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+/* ---------------- 批次辅助函数 ---------------- */
+// 获取试剂的汇总数量和最短效期
+function reagTotalQty(r) {
+  if (!r.lots || !r.lots.length) return Number(r.qty) || 0;
+  return r.lots.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+}
+function reagLotsExpired(r) {
+  if (!r.lots || !r.lots.length) return daysUntil(r.expiry) < 0;
+  return r.lots.some((l) => l.expiry && daysUntil(l.expiry) < 0);
+}
+function reagMinExpiry(r) {
+  if (!r.lots || !r.lots.length) return r.expiry || '';
+  const vals = r.lots.map((l) => l.expiry).filter(Boolean);
+  if (!vals.length) return '';
+  vals.sort();
+  return vals[0];
+}
+function reagLotsExpiring(r) {
+  const e = reagMinExpiry(r);
+  if (!e) return false;
+  const d = daysUntil(e);
+  return d <= expDays() && d >= 0;
+}
+function reagHasLot(r, lot) {
+  if (!r.lots) return (r.lot || '') === lot;
+  return r.lots.some((l) => l.lot === lot);
+}
+function reagGetLotStr(r) {
+  if (!r.lots || !r.lots.length) return r.lot || '';
+  return [...new Set(r.lots.map((l) => l.lot).filter(Boolean))].join('/');
+}
+
 function reagStatus(r) {
-  const days = daysUntil(r.expiry);
-  if (days < 0) return { key: 'bad', text: '已过期' };
-  if (days <= expDays()) return { key: 'warn', text: '临期' };
-  if (Number(r.qty) <= Number(r.min || 0)) return { key: 'warn', text: '需补货' };
+  const expired = reagLotsExpired(r);
+  if (expired) return { key: 'bad', text: '已过期' };
+  const expiring = reagLotsExpiring(r);
+  if (expiring) return { key: 'warn', text: '临期' };
+  if (reagTotalQty(r) <= Number(r.min || 0)) return { key: 'warn', text: '需补货' };
   return { key: 'ok', text: '正常' };
 }
+
 function toast(msg, ms) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), ms || 1800);
@@ -670,9 +893,9 @@ function renderOverview() {
   const reags = load(STORE.reag, []);
   const weekAgo = Date.now() - 7 * 86400000;
   const weekExp = exps.filter((e) => new Date(e.createdAt).getTime() >= weekAgo).length;
-  const expiring = reags.filter((r) => { const d = daysUntil(r.expiry); return d <= expDays() && d >= 0; }).length;
-  const expired = reags.filter((r) => daysUntil(r.expiry) < 0).length;
-  const low = reags.filter((r) => Number(r.qty) <= Number(r.min || 0)).length;
+  const expiring = reags.filter((r) => reagLotsExpiring(r)).length;
+  const expired = reags.filter((r) => reagLotsExpired(r)).length;
+  const low = reags.filter((r) => reagTotalQty(r) <= Number(r.min || 0)).length;
 
   let html = `<div class="statbar">
     <div class="s tap" onclick="switchView('experiments')"><span class="ico">📝</span><div class="num">${weekExp}</div><div class="lbl">本周记录</div></div>
@@ -694,9 +917,12 @@ function renderOverview() {
   const alerts = [];
   reags.forEach((r) => {
     const st = reagStatus(r);
-    if (st.key === 'bad') alerts.push({ id: r.id, color: 'var(--red)', name: r.name, desc: `货号 ${r.lot} · ${st.text}（${r.expiry}）` });
-    else if (st.key === 'warn' && st.text === '需补货') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `库存 ${r.qty}${r.unit} ≤ 安全库存 ${r.min}${r.unit}` });
-    else if (st.key === 'warn') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `货号 ${r.lot} · ${st.text}（${r.expiry}）` });
+    const tot = reagTotalQty(r);
+    const lotStr = reagGetLotStr(r);
+    const minExp = reagMinExpiry(r);
+    if (st.key === 'bad') alerts.push({ id: r.id, color: 'var(--red)', name: r.name, desc: `货号 ${lotStr} · ${st.text}（${minExp}）` });
+    else if (st.key === 'warn' && st.text === '需补货') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `库存 ${tot}${(r.lots||[r])[0].unit} ≤ 安全库存 ${r.min}${(r.lots||[r])[0].unit}` });
+    else if (st.key === 'warn') alerts.push({ id: r.id, color: 'var(--orange)', name: r.name, desc: `货号 ${lotStr} · ${st.text}（${minExp}）` });
   });
   if (alerts.length) {
     html += '<div class="section-title">需要关注</div>';
@@ -838,6 +1064,13 @@ function renderReagents() {
     html += `<div class="chip ${reagFilter === k ? 'active' : ''}" onclick="setReagFilter('${k}')">${l}</div>`;
   });
   html += '</div>';
+  // 批次状态筛选行
+  html += '<div class="chips" style="margin-top:4px">';
+  const lotStatuses = [['all', '全部批次'], ['unused', '未使用'], ['inuse', '在用'], ['usedup', '用完'], ['discard', '废弃']];
+  lotStatuses.forEach(([k, l]) => {
+    html += `<div class="chip ${reagLotFilter === k ? 'active' : ''}" onclick="setReagLotFilter('${k}')">${l}</div>`;
+  });
+  html += '</div>';
   html += `<div class="reag-batch-row">
     <button class="btn" style="flex:1" onclick="openReagBatch()">📥 批量导入</button>
     <button class="btn secondary" style="flex:1" onclick="toggleReagSelect()">${reagSelectMode ? '完成' : '🗂️ 批量管理'}</button>
@@ -857,20 +1090,34 @@ function renderReagents() {
       const chk = reagSelectMode ? '<div class="chk"></div>' : '';
       const pinMark = r.pinned ? ' · 置顶' : '';
       const tagHtml = st.key === 'ok' ? (r.pinned ? '<span class="tag info">置顶</span>' : '') : `<span class="tag ${tagCls}">${st.text}${pinMark}</span>`;
+
+      // 汇总信息（用已有批次函数）
+      const totalQty = reagTotalQty(r);
+      const minExpiry = reagMinExpiry(r);
+      const lots = r.lots || [];
+      const batchCount = lots.length || 1;
+      const lotStrs = [...new Set((lots.length ? lots : [{ lot: r.lot||'' }]).map((l) => l.lot).filter(Boolean))];
+      const expiredCount = lots.filter(l => l.expiry && daysUntil(l.expiry) < 0).length;
+      const expiringCount = lots.filter(l => l.expiry && daysUntil(l.expiry) <= expDays() && daysUntil(l.expiry) >= 0).length;
+      let batchSummary = `${batchCount} 批 · 最短效期 ${esc(minExpiry || '—')}`;
+      if (expiredCount) batchSummary += ` · ${expiredCount}批已过期`;
+      else if (expiringCount) batchSummary += ` · ${expiringCount}批将到期`;
+
       html += `<div class="${cls}" onclick="${click}">
         ${chk}
         <div class="card-body">
         <div class="row1"><h3>${esc(r.name)}</h3></div>
-        <div class="meta">${esc(r.supplier || r.brand || '—')}${r.lot ? ' · 货号 ' + esc(r.lot) : ''}</div>
-        <div class="meta">${(r.batch ? '批号 ' + esc(r.batch) + ' · ' : '')}库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>
-        <div class="meta" style="margin-top:2px">效期 ${esc(r.expiry)}</div>
+        <div class="meta">${esc(r.supplier || r.brand || '—')}${lotStrs.length ? ' · 货号 ' + esc(lotStrs.join('/')) : ''}</div>
+        <div class="meta">库存 ${totalQty}${lots[0].unit}（共 ${batchCount} 批） · ${esc(lots[0].location || '')}</div>
+        <div class="meta" style="margin-top:2px">${esc(batchSummary)}</div>
         </div>
         <div class="card-actions">${tagHtml ? tagHtml : ''}${inquireBtn || ''}</div>
       </div>`;
+
     });
     html += '</div>';
   }
-  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= expDays() && daysUntil(r.expiry) >= 0));
+  const needBuy = reags.filter((r) => reagTotalQty(r) <= Number(r.min || 0) || reagLotsExpired(r) || reagLotsExpiring(r));
   if (needBuy.length) html += `<button class="btn" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
@@ -879,12 +1126,21 @@ function getVisibleReags() {
   const reags = load(STORE.reag, []);
   const idx = new Map(reags.map((r, i) => [r.id, i]));
   let list = reags.filter((r) => {
-    if (reagSearch && !(r.name + r.lot + r.location).toLowerCase().includes(reagSearch.toLowerCase())) return false;
+    if (reagSearch) {
+      const lotsStr = (r.lots||[]).map((l) => (l.lot||'')+'/'+(l.batch||'')+'/'+(l.location||'')).join(' ');
+      if (!(r.name + ' ' + (r.lot||'') + ' ' + (r.location||'') + ' ' + lotsStr).toLowerCase().includes(reagSearch.toLowerCase())) return false;
+    }
     if (reagFilter === 'all') return true;
     const st = reagStatus(r);
-    if (reagFilter === 'expired') return daysUntil(r.expiry) < 0;
+    if (reagFilter === 'expired') return reagLotsExpired(r);
     if (reagFilter === 'expiring') return st.text.includes('临期');
     if (reagFilter === 'low') return st.text === '需补货';
+    // 批次状态筛选
+    if (reagLotFilter !== 'all') {
+      const statusMap = { 'unused': '未使用', 'inuse': '在用', 'usedup': '用完', 'discard': '废弃' };
+      const target = statusMap[reagLotFilter];
+      if (!(r.lots||[]).some((l) => (l.status||'未使用') === target)) return false;
+    }
     return true;
   });
   list.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (idx.get(a.id) - idx.get(b.id)));
@@ -913,6 +1169,7 @@ function reagDeleteSel() {
 }
 function setReagSeg(s) { reagSeg = s; renderReagents(); setHeader(); }
 function setReagFilter(f) { reagFilter = f; renderReagents(); }
+function setReagLotFilter(f) { reagLotFilter = f; renderReagents(); }
 function onReagSearch(v) { reagSearch = v; renderReagents(); const inp = $('reagSearch'); if (inp) { inp.focus(); const len = inp.value.length; inp.setSelectionRange(len, len); } }
 function renderExpiryCalendar() {
   const reags = load(STORE.reag, []);
@@ -934,7 +1191,10 @@ function renderExpiryCalendar() {
   const totalCells = startDow + lastDay;
   const rows = Math.ceil(totalCells / 7);
   const dayMark = {};
-  reags.forEach((r) => { if (r.expiry && r.expiry !== '—') { (dayMark[r.expiry] = dayMark[r.expiry] || []).push(r); } });
+  reags.forEach((r) => {
+    const e = reagMinExpiry(r);
+    if (e && e !== '—') { (dayMark[e] = dayMark[e] || []).push(r); }
+  });
   const wd = ['一', '二', '三', '四', '五', '六', '日'];
   html += '<div class="expcal">';
   wd.forEach((w) => { html += `<div class="expcal-head">${w}</div>`; });
@@ -958,20 +1218,21 @@ function renderExpiryCalendar() {
   html += '<div class="section-title">采购 / 处理清单</div>';
   let any = false;
   const groups = [
-    ['已过期', (r) => daysUntil(r.expiry) < 0 && r.expiry && r.expiry.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`), 'bad'],
-    ['本月内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && r.expiry && r.expiry.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`); }, 'warn']
+    ['已过期', (r) => { const m = reagMinExpiry(r); return reagLotsExpired(r) && m && m.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`); }, 'bad'],
+    ['本月内到期', (r) => { const m = reagMinExpiry(r); const d = reagLotsExpired(r) ? -1 : daysUntil(m); return m && d >= 0 && m.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`); }, 'warn']
   ];
   groups.forEach(([title, fn, cls]) => {
     const list = reags.filter((r) => fn(r));
     if (list.length) {
       any = true;
       html += `<div class="ec-group"><div class="ec-gtitle ${cls}">${title}（${list.length}）</div>`;
-      list.sort((a, b) => daysUntil(a.expiry) - daysUntil(b.expiry)).forEach((r) => {
-        const d = daysUntil(r.expiry);
+      list.sort((a, b) => daysUntil(reagMinExpiry(a)) - daysUntil(reagMinExpiry(b))).forEach((r) => {
+        const me = reagMinExpiry(r);
+        const d = reagLotsExpired(r) ? -1 : daysUntil(me);
         const dd = d < 0 ? `逾期${-d}天` : `剩${d}天`;
         const tk = reagStatus(r).key;
         html += `<div class="list-row" onclick="openReagSheet('${r.id}')">
-          <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">批号 ${esc(r.lot)} · ${esc(r.location)} · 效期 ${esc(r.expiry)}</div>
+          <div class="lr-main"><div class="lr-title">${esc(r.name)}</div><div class="lr-sub">货号 ${esc(reagGetLotStr(r))} · 最短效期 ${esc(me)}</div>
           <span class="tag ${tk}" style="margin-top:6px;display:inline-block">${dd}</span></div>
           <button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${r.id}')" title="发送询价给供应商">询价</button></div>`;
       });
@@ -979,7 +1240,7 @@ function renderExpiryCalendar() {
     }
   });
   if (!any) html += emptyState(calYear + '年' + (calMonth+1) + '月无到期试剂', '');
-  const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= expDays() && daysUntil(r.expiry) >= 0));
+  const needBuy = reags.filter((r) => reagTotalQty(r) <= Number(r.min || 0) || reagLotsExpired(r) || reagLotsExpiring(r));
   if (needBuy.length) html += `<button class="btn" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
@@ -1027,13 +1288,18 @@ function renderFreezer() {
   const inBox = {};
   here.forEach((s) => { inBox[s.row + s.col] = s; });
   const term = freezerSearch.trim().toLowerCase();
-  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const meta = load(STORE.boxMeta, {});
+  const boxCfg = meta[freezerBox] || { rows: 8, cols: 12 };
+  const rows = [];
+  const rn = parseInt(boxCfg.rows) || 8;
+  const cn = parseInt(boxCfg.cols) || 12;
+  for (let ri = 0; ri < rn; ri++) rows.push(String.fromCharCode(65 + ri));
   html += '<div class="freezer">';
   html += '<div class="colhead"></div>';
-  for (let c = 1; c <= 12; c++) html += `<div class="colhead">${c}</div>`;
+  for (let c = 1; c <= cn; c++) html += `<div class="colhead">${c}</div>`;
   rows.forEach((r) => {
     html += `<div class="colhead">${r}</div>`;
-    for (let c = 1; c <= 12; c++) {
+    for (let c = 1; c <= cn; c++) {
       const s = inBox[r + c];
       if (s) {
         const match = term && (s.name + ' ' + s.type + ' ' + s.note + ' ' + s.box).toLowerCase().includes(term);
@@ -1049,7 +1315,8 @@ function renderFreezer() {
     }
   });
   html += '</div>';
-  html += `<div class="meta" style="margin-top:10px">点击${freezerMulti ? '格子可勾选 / 取消选中' : '空格新增样本，点击蓝格查看'}。本盒 ${here.length} / 96 份。</div>`;
+  const totalCells = rn * cn;
+  html += `<div class="meta" style="margin-top:10px">点击${freezerMulti ? '格子可勾选 / 取消选中' : '空格新增样本，点击蓝格查看'}。本盒 ${here.length} / ${totalCells} 份。</div>`;
   $('view-reagents').innerHTML = html;
 }
 function setFreezerBox(b) { freezerBox = b; freezerSel.clear(); renderFreezer(); }
@@ -1090,8 +1357,16 @@ function addFreezerBox() {
   let i = 1; while (boxes.includes('B' + i)) i++;
   const def = 'B' + i;
   let html = `<div class="grabber"></div><h2>新建冻存盒</h2>
-    <p class="hint">给新盒子起个名字，如 ${def}、液氮罐1。</p>
+    <p class="hint">给新盒子起个名字，选择格子规格。</p>
     <div class="field"><label>盒子名称</label><input id="nbName" value="${def}" placeholder="如 B2"></div>
+    <div class="field"><label>格子规格</label>
+      <select id="nbGrid" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--glass);font-size:14px;outline:none">
+        <option value="8×12">8×12（96 孔，标准）</option>
+        <option value="8×8">8×8（64 孔）</option>
+        <option value="10×10">10×10（100 孔）</option>
+        <option value="6×6">6×6（36 孔）</option>
+      </select>
+    </div>
     <div class="btn-row" style="margin-top:6px">
       <button class="btn ghost" onclick="closeSheet()">取消</button>
       <button class="btn" onclick="confirmAddBox()">创建</button>
@@ -1103,7 +1378,13 @@ function confirmAddBox() {
   if (!name) { toast('请输入盒子名称'); return; }
   const boxes = getBoxes();
   if (boxes.includes(name)) { toast('已存在同名盒子'); return; }
-  boxes.push(name); save(STORE.boxes, boxes);
+  // 读取规格
+  const grid = ($('nbGrid') ? $('nbGrid').value : '8×12') || '8×12';
+  boxes.push(name);
+  save(STORE.boxes, boxes);
+  const meta = load(STORE.boxMeta, {});
+  meta[name] = { grid: grid, rows: grid.split('×')[0] || '8', cols: grid.split('×')[1] || '12' };
+  save(STORE.boxMeta, meta);
   freezerBox = name; freezerSel.clear(); freezerMulti = false;
   closeSheet(); renderFreezer(); toast('已创建盒子 ' + name);
 }
@@ -1113,8 +1394,10 @@ function openBoxManager() {
   const samples = load(STORE.samples, []);
   let rows = boxes.map((b, i) => {
     const cnt = samples.filter((s) => s.box === b).length;
+    const meta = load(STORE.boxMeta, {});
+    const info = meta[b] ? meta[b].grid : '';
     return `<div class="list-row">
-      <div class="lr-main"><div class="lr-title">${esc(b)}</div><div class="lr-sub">${cnt} 份样本</div></div>
+      <div class="lr-main"><div class="lr-title">${esc(b)}</div><div class="lr-sub">${cnt} 份样本${info ? ' · ' + info : ''}</div></div>
       <div class="lr-right" style="display:flex;gap:8px">
         <button class="mini-btn" onclick="renameBoxByIndex(${i})">重命名</button>
         <button class="mini-btn danger" onclick="deleteBoxByIndex(${i})">删除</button>
@@ -1161,6 +1444,7 @@ function deleteBox(name) {
   if (!confirm(`删除盒子「${name}」及其 ${cnt} 份样本？此操作不可撤销。`)) return;
   const samples = load(STORE.samples, []).filter((s) => s.box !== name); save(STORE.samples, samples);
   const nb = getBoxes().filter((b) => b !== name); save(STORE.boxes, nb);
+  const meta = load(STORE.boxMeta, {}); delete meta[name]; save(STORE.boxMeta, meta);
   if (freezerBox === name) freezerBox = nb[0];
   freezerSel.clear(); closeSheet(); renderFreezer(); toast('已删除盒子 ' + name);
 }
@@ -1724,40 +2008,248 @@ function openReagSheet(id) {
   editingReagId = id || null;
   const r = id ? load(STORE.reag, []).find((x) => x.id === id) : null;
   const v = (k) => (r ? esc(r[k]) : '');
+  const lots = (r && r.lots && r.lots.length) ? r.lots : (r ? [{ lot: r.lot||'', batch: r.batch||'', qty: Number(r.qty)||0, unit: r.unit||'瓶', location: r.location||'', expiry: r.expiry||'', opened: '', status: '未使用' }] : []);
+  
   let html = `<div class="grabber"></div><h2>${r ? '库存详细' : '添加库存'}</h2>
-    <p class="hint">记录货号、效期与安全库存，系统自动提醒临期与补货。</p>
-    <div class="field"><label>名称</label><input id="rName" value="${v('name')}" placeholder="如：PBS 缓冲液"></div>
+    <p class="hint">记录试剂信息与各批次详情，系统自动提醒临期与补货。</p>
+    <div class="section-title" style="font-size:13px;margin:8px 0 4px">试剂/耗材信息</div>
+    <div class="field"><label>名称</label><div style="display:flex;flex:1;gap:4px"><input id="rName" value="${v('name')}" placeholder="如：PBS 缓冲液" style="flex:1"><span class="ai-scan-btn" onclick="scanReagPhoto()">📷 拍照识别</span></div></div>
     <div class="field-row">
       <div class="field"><label>品牌</label><input id="rSup" value="${v('supplier')}" placeholder="如：Thermo / Sigma"></div>
-      <div class="field"><label>货号</label><input id="rLot" value="${v('lot')}" placeholder="如：PB2605"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>数量 / 单位</label>
-        <div style="display:flex;gap:10px"><input id="rQty" type="number" value="${v('qty')}" placeholder="数量" style="flex:1"><input id="rUnit" value="${v('unit') || '瓶'}" placeholder="单位" style="max-width:120px"></div></div>
       <div class="field"><label>安全库存（低于即提醒补货）</label><input id="rMin" type="number" value="${v('min') || 0}" placeholder="如：1"></div>
     </div>
-    <div class="field"><label>存放位置</label><input id="rLoc" value="${v('location')}" placeholder="如：4℃柜A"></div>
-    <div class="field-row">
-      <div class="field"><label>批号</label><input id="rBatch" value="${v('batch')}" placeholder="如：B20240301（选填）"></div>
-      <div class="field"><label>有效期</label><input id="rExp" type="date" value="${v('expiry')}"></div>
-    </div>
     <div class="field"><label>品牌偏好（询价时使用）</label><input id="rBrand" value="${v('brand')}" placeholder="如：迈博瑞 / Lonza / Solarbio（选填）"></div>
-    <div class="btn-row" style="margin-top:8px">
-      ${r ? '<button class="btn danger" onclick="deleteReag()">删除</button>' : ''}
-      ${r ? '<button class="btn secondary" onclick="inquireReag(\'' + r.id + '\')">📤 询价</button>' : ''}
+    <div class="section-title" style="font-size:13px;margin:12px 0 4px">批次列表</div>
+    <div class="lot-sheet-list" id="lotSheetList">`;
+
+  lots.forEach((l, i) => {
+    html += `<div class="lot-sheet-row">
+      <div class="lot-sheet-fields">
+        <div class="lot-sheet-field"><label>货号</label><input data-lot-idx="${i}" class="lot-input" data-field="lot" value="${esc(l.lot||'')}"></div>
+        <div class="lot-sheet-field"><label>批号</label><input data-lot-idx="${i}" class="lot-input" data-field="batch" value="${esc(l.batch||'')}"></div>
+        <div class="lot-sheet-field"><label>数量</label><input data-lot-idx="${i}" class="lot-input" data-field="qty" type="number" value="${Number(l.qty)||0}"></div>
+        <div class="lot-sheet-field"><label>单位</label><input data-lot-idx="${i}" class="lot-input" data-field="unit" value="${esc(l.unit||'瓶')}" list="unitList"></div>
+        <div class="lot-sheet-field"><label>位置</label><input data-lot-idx="${i}" class="lot-input" data-field="location" value="${esc(l.location||'')}"></div>
+        <div class="lot-sheet-field"><label>效期</label><input data-lot-idx="${i}" class="lot-input" data-field="expiry" type="date" value="${esc(l.expiry||'')}"></div>
+        <div class="lot-sheet-field"><label>开瓶</label><input data-lot-idx="${i}" class="lot-input" data-field="opened" type="date" value="${esc(l.opened||'')}"></div>
+        <div class="lot-sheet-field"><label>状态</label>
+          <select data-lot-idx="${i}" class="lot-input" data-field="status">
+            ${['未使用','在用','用完','废弃'].map((s) => `<option value="${s}"${s===(l.status||'未使用')?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      ${lots.length > 1 ? `<button class="lot-del" onclick="removeLotRow(${i})" title="删除此批次">✕</button>` : ''}
+    </div>`;
+  });
+
+  html += `</div>
+    <button class="btn ghost" style="width:100%" onclick="addLotRow()">+ 添加批次</button>
+    <div style="margin-top:6px;font-size:12px;color:var(--muted);text-align:right"><span style="cursor:pointer" onclick="openUnitManager()">管理单位</span></div>`;
+  html += unitListHtml();
+
+  // 只在新建模式存 lot-ids，编辑模式从原数据读
+  if (r) {
+    html += `<div class="btn-row" style="margin-top:12px">
+      <button class="btn danger" onclick="deleteReag()">删除试剂</button>
+      <button class="btn secondary" onclick="inquireReag('${r.id}')">📤 询价</button>
       <button class="btn" onclick="saveReag()">保存</button>
     </div>`;
+  } else {
+    html += `<div class="btn-row" style="margin-top:12px"><button class="btn" onclick="saveReag()">保存</button></div>`;
+  }
+  
+  // 存储原始 lot ids 用于编辑模式匹配
+  if (r) {
+    const lotIds = JSON.stringify(lots.map((l) => l.id).filter(Boolean));
+    html += `<span id="lotIdsData" style="display:none">${esc(lotIds)}</span>`;
+  }
+  
   openSheet(html);
 }
+
+/* AI 全屏 loading（拍照识别 / CoA 审查 / AI 整理 通用） */
+function showScanLoading(show, msg) {
+  let el = document.getElementById('_scanLoading');
+  if (!el && show) {
+    // 注入 spin 动画（仅一次）
+    if (!document.getElementById('_scanSpinStyle')) {
+      const st = document.createElement('style');
+      st.id = '_scanSpinStyle';
+      st.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+    el = document.createElement('div');
+    el.id = '_scanLoading';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px';
+    el.innerHTML = `<svg width="44" height="44" viewBox="0 0 44 44" style="animation:spin .85s linear infinite"><circle cx="22" cy="22" r="18" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="90" stroke-dashoffset="70" stroke-linecap="round"/></svg>
+      <span id="_scanLoadingText" style="color:#fff;font-size:16px;font-weight:500;letter-spacing:.5px">${msg || '正在识别标签…'}</span>`;
+    document.body.appendChild(el);
+  }
+  if (el) {
+    // 更新文字
+    const txt = document.getElementById('_scanLoadingText');
+    if (txt && msg) txt.textContent = msg;
+    el.style.display = show ? 'flex' : 'none';
+  }
+}
+function scanReagPhoto() {
+  if (!agnesReady()) { toast('请先在「设置 → AI」配置 API Key（留空即用内置默认）'); return; }
+  // 创建隐藏的 file input 触发拍照/选图
+  let inp = document.getElementById('_photoInput');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.id = '_photoInput';
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.capture = 'environment';
+    inp.style.display = 'none';
+    document.body.appendChild(inp);
+  }
+  inp.onchange = async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    inp.value = '';
+    showScanLoading(true);
+    // canvas 压缩到 max 800px
+    const img = await loadImage(file);
+    const canvas = document.createElement('canvas');
+    let w = img.width, h = img.height;
+    const maxDim = 800;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) { h = h * maxDim / w; w = maxDim; }
+      else { w = w * maxDim / h; h = maxDim; }
+    }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    
+    try {
+      const c = agnesCreds();
+      const base = 'https://apihub.agnes-ai.com';
+      const res = await fetch(base + '/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.key },
+        body: JSON.stringify({
+          model: 'agnes-1.5-flash',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: '识别这张照片中的试剂/耗材标签信息，提取以下字段（若无则填空字符串），只输出 JSON 不要解释：{"name":"试剂名称（中文优先）","supplier":"品牌/厂家","lot":"货号/catalog number","batch":"批号/lot number","expiry":"有效期（YYYY-MM-DD）","unit":"规格单位如 mL/g/支"}。注意：name 是试剂名称，不是供试品名称。若无有效期则 expiry 填空字符串。' },
+              { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }
+            ]
+          }],
+          max_tokens: 500,
+          stream: false,
+          temperature: 0.1
+        })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      const raw = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      if (!raw) throw new Error('empty response');
+      const data = extractJSON(raw);
+      if (!data) throw new Error('parse failed');
+      // 填充表单
+      const nameInp = $('rName'); if (nameInp && data.name) nameInp.value = data.name;
+      const supInp = $('rSup'); if (supInp && data.supplier) supInp.value = data.supplier;
+      // 自动填入第一个批次的货号和批号
+      if (data.lot || data.batch) {
+        const firstLot = document.querySelector('.lot-input[data-field="lot"]');
+        const firstBatch = document.querySelector('.lot-input[data-field="batch"]');
+        if (firstLot && data.lot) firstLot.value = data.lot;
+        if (firstBatch && data.batch) firstBatch.value = data.batch;
+      }
+      // 自动填入第一个批次的有效期
+      if (data.expiry) {
+        const firstExp = document.querySelector('.lot-input[data-field="expiry"]');
+        if (firstExp) firstExp.value = data.expiry;
+      }
+      // 自动填入单位
+      if (data.unit) {
+        const firstUnit = document.querySelector('.lot-input[data-field="unit"]');
+        if (firstUnit) firstUnit.value = data.unit;
+      }
+      showScanLoading(false);
+      toast('✅ 识别完成，请确认');
+    } catch (e) {
+      showScanLoading(false);
+      toast('识别失败：' + (e.message || '未知错误'));
+      console.warn('[Scan]', e);
+    }
+  };
+  inp.click();
+}
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 function saveReag() {
   const name = $('rName').value.trim();
   if (!name) { toast('请填写名称'); return; }
-  const r = { name, lot: $('rLot').value.trim(), batch: ($('rBatch') ? $('rBatch').value.trim() : ''), qty: $('rQty').value, unit: $('rUnit').value.trim() || '瓶',
-    location: $('rLoc').value.trim(), expiry: $('rExp').value, min: $('rMin').value || 0, supplier: $('rSup').value.trim(), brand: ($('rBrand') ? $('rBrand').value.trim() : '') };
+  const supplier = $('rSup').value.trim();
+  const brand = $('rBrand') ? $('rBrand').value.trim() : '';
+  const min = $('rMin').value || 0;
+  
+  // 读取批次列表输入
+  const lotInputs = document.querySelectorAll('#lotSheetList .lot-input');
+  const idxMap = {};
+  lotInputs.forEach((inp) => {
+    const idx = inp.dataset.lotIdx;
+    const field = inp.dataset.field;
+    if (!idxMap[idx]) idxMap[idx] = {};
+    idxMap[idx][field] = inp.value;
+  });
+  
+  const lots = Object.values(idxMap);
+  
+  // 如果已有批次，合并旧 id
   const reags = load(STORE.reag, []);
-  if (editingReagId) { const i = reags.findIndex((x) => x.id === editingReagId); reags[i] = { ...reags[i], ...r }; }
-  else reags.push({ id: uid('r'), ...r });
-  save(STORE.reag, reags); closeSheet(); toast('已保存'); renderAll();
+  const existing = editingReagId ? reags.find((x) => x.id === editingReagId) : null;
+  
+  let r;
+  if (editingReagId) {
+    const i = reags.findIndex((x) => x.id === editingReagId);
+    const oldLots = (reags[i].lots || []).filter((l) => l.id);
+    const updatedLots = lots.map((l, idx) => {
+      const old = oldLots[idx] || {};
+      return { id: old.id || uid('l'), lot: l.lot || '', batch: l.batch || '', qty: Number(l.qty) || 0, unit: l.unit || '瓶', location: l.location || '', expiry: l.expiry || '', opened: l.opened || '', status: l.status || '正常' };
+    });
+    reags[i] = { ...reags[i], name, supplier, brand, min, lots: updatedLots };
+    r = reags[i];
+  } else {
+    r = { id: uid('r'), name, supplier, brand, min, lots: lots.map((l) => ({ id: uid('l'), lot: l.lot || '', batch: l.batch || '', qty: Number(l.qty) || 0, unit: l.unit || '瓶', location: l.location || '', expiry: l.expiry || '', opened: l.opened || '', status: l.status || '正常' })) };
+    reags.push(r);
+  }
+  save(STORE.reag, reags);
+  // 自动收集新单位
+  const customUnits = getUserUnits();
+  let changed = false;
+  lots.forEach((l) => {
+    if (l.unit && !DEFAULT_UNITS.includes(l.unit) && !customUnits.includes(l.unit)) {
+      customUnits.push(l.unit); changed = true;
+    }
+  });
+  if (changed) saveUserUnits(customUnits);
+  closeSheet(); toast('已保存'); renderAll();
+}
+function removeLotRow(idx) {
+  const list = $('lotSheetList');
+  const rows = list.querySelectorAll('.lot-sheet-row');
+  if (rows[idx]) rows[idx].remove();
+  // 重新编号剩余的 data-lot-idx
+  const remaining = list.querySelectorAll('.lot-sheet-row');
+  remaining.forEach((row, i) => {
+    row.querySelectorAll('.lot-input').forEach((inp) => inp.dataset.lotIdx = i);
+    if (remaining.length > 1) {
+      let delBtn = row.querySelector('.lot-del');
+    }
+  });
 }
 function deleteReag() {
   if (!editingReagId) return;
@@ -1887,7 +2379,7 @@ function renderReagBatchPreview() {
   const arr = parseReagLines(($('rbText') || {}).value || '');
   const all = arr.concat(reagExcelRows);
   const total = all.length;
-  const dupCount = all.filter((r) => load(STORE.reag, []).some((x) => x.name === r.name && x.lot === r.lot)).length;
+  const dupCount = all.filter((r) => load(STORE.reag, []).some((x) => x.name === r.name)).length;
   let inner = '';
   if (reagExcelRows.length) inner += `<div class="bp-row ok">📊 Excel：${reagExcelRows.length} 条</div>`;
   if (arr.length) inner += arr.slice(0, 5).map((r) => `<div class="bp-row">${esc(r.supplier || '—')} · ${esc(r.name)} · 货号 ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 5 ? `<div class="bp-row muted">…文本共 ${arr.length} 条</div>` : '');
@@ -1903,9 +2395,22 @@ function confirmReagBatch() {
   const reags = load(STORE.reag, []);
   let added = 0, updated = 0;
   all.forEach((r) => {
-    const i = reags.findIndex((x) => x.name === r.name && x.lot === r.lot);
-    if (i >= 0) { reags[i] = { ...reags[i], ...r }; updated++; }
-    else { reags.push({ id: uid('r'), ...r }); added++; }
+    // 查找同名试剂（不要求货号完全一致，同试剂名合并）
+    const i = reags.findIndex((x) => x.name === r.name);
+    const lotEntry = { id: uid('l'), lot: r.lot||'', batch: r.batch||'', qty: Number(r.qty)||0, unit: r.unit||'瓶', location: r.location||'', expiry: r.expiry||'', opened: '', status: '未使用' };
+    if (i >= 0) {
+      // 已有同名的试剂：追加批次
+      if (!reags[i].lots) reags[i].lots = [];
+      reags[i].lots.push(lotEntry);
+      // 更新供应商/品牌信息
+      if (r.supplier) reags[i].supplier = r.supplier;
+      if (r.brand) reags[i].brand = r.brand;
+      updated++;
+    } else {
+      // 新增试剂
+      reags.push({ id: uid('r'), name: r.name, supplier: r.supplier||'', brand: r.brand||'', min: 0, lots: [lotEntry] });
+      added++;
+    }
   });
   save(STORE.reag, reags); closeSheet(); renderAll(); reagExcelRows = [];
   toast(`新增 ${added} · 更新 ${updated}`);
@@ -1988,6 +2493,12 @@ function openSampleSheet(id, row, col) {
     <p class="hint">位置 ${freezerBox} · ${r}${c}</p>
     <div class="field"><label>名称</label><input id="sName" value="${v('name')}" placeholder="如：pET28a 质粒"></div>
     <div class="field"><label>类型</label><input id="sType" value="${v('type') || '样本'}" placeholder="质粒/细胞系/引物/样本"></div>
+    <div class="field"><label>关联试剂（选填）</label>
+      <select id="sReag" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--glass);font-size:14px;outline:none;appearance:auto">
+        <option value="">— 不关联 —</option>
+        ${load(STORE.reag, []).map((r) => `<option value="${r.id}"${s && s.reagId === r.id ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}
+      </select>
+    </div>
     <div class="field"><label>备注</label><input id="sNote" value="${v('note')}" placeholder="浓度/代数等"></div>
     <div class="field"><label>效期</label><input id="sExp" type="date" value="${v('expiry')}"></div>
     <div class="btn-row" style="margin-top:8px">
@@ -1999,7 +2510,8 @@ function openSampleSheet(id, row, col) {
 function saveSample(box, row, col) {
   const name = $('sName').value.trim();
   if (!name) { toast('请填写名称'); return; }
-  const data = { name, type: $('sType').value.trim() || '样本', note: $('sNote').value.trim(), expiry: $('sExp').value, box, row, col };
+  const reagId = ($('sReag') ? $('sReag').value : '') || '';
+  const data = { name, type: $('sType').value.trim() || '样本', note: $('sNote').value.trim(), expiry: $('sExp').value, box, row, col, reagId };
   const samples = load(STORE.samples, []);
   if (editingSampleId) { const i = samples.findIndex((x) => x.id === editingSampleId); samples[i] = { ...samples[i], ...data }; }
   else samples.push({ id: uid('s'), ...data });
@@ -2066,9 +2578,11 @@ function inquireReag(id) {
   const r = load(STORE.reag, []).find((x) => x.id === id);
   if (!r) return;
   const st = reagStatus(r);
-  const reason = st.text === '需补货' ? '库存不足' : st.text === '已过期' ? '已过期需替换' : st.text.includes('临期') ? `临期（剩${daysUntil(r.expiry)}天）` : '常规采购';
-  const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min) || 1);
-  openInquireSheet([{ name: r.name, spec: r.spec || r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '请推荐' }], '询价 · ' + r.name, 'reagent');
+  const me = reagMinExpiry(r);
+  const reason = st.text === '需补货' ? '库存不足' : st.text === '已过期' ? '已过期需替换' : st.text.includes('临期') ? `临期（剩${daysUntil(me)}天）` : '常规采购';
+  const suggest = Math.max(Number(r.min || 0) - reagTotalQty(r), 0);
+  const unit = (r.lots && r.lots[0] && r.lots[0].unit) || r.unit || '件';
+  openInquireSheet([{ name: r.name, spec: r.spec || r.location, qty: suggest || 1, unit, lot: r.lot || (r.lots && r.lots[0] && r.lots[0].lot) || '', reason, brandHint: r.brand || '请推荐' }], '询价 · ' + r.name, 'reagent');
 }
 
 /* ② 批量询价（来自效期日历采购清单） */
@@ -2076,20 +2590,22 @@ function inquireExpiring() {
   const reags = load(STORE.reag, []);
   const ed = expDays();
   const groups = [
-    ['已过期', (r) => daysUntil(r.expiry) < 0],
-    ['7 天内到期', (r) => { const d = daysUntil(r.expiry); return d >= 0 && d <= 7; }],
-    [`${ed} 天内到期`, (r) => { const d = daysUntil(r.expiry); return d > 7 && d <= ed; }],
-    ['需补货', (r) => Number(r.qty) <= Number(r.min || 0)]
+    ['已过期', (r) => reagLotsExpired(r)],
+    ['7 天内到期', (r) => { const d = daysUntil(reagMinExpiry(r)); return d >= 0 && d <= 7; }],
+    [`${ed} 天内到期`, (r) => { const d = daysUntil(reagMinExpiry(r)); return d > 7 && d <= ed; }],
+    ['需补货', (r) => reagTotalQty(r) <= Number(r.min || 0)]
   ];
   const items = [];
   const seen = new Set();
   groups.forEach(([_, fn]) => reags.filter(fn).forEach((r) => {
-    if (seen.has(r.id)) return; // 同一试剂可能同时命中多组（如临期又需补货），去重
+    if (seen.has(r.id)) return;
     seen.add(r.id);
+    const me = reagMinExpiry(r);
     const st = reagStatus(r);
-    const reason = st.text === '需补货' ? '库存不足' : daysUntil(r.expiry) < 0 ? '已过期' : `剩${daysUntil(r.expiry)}天`;
-    const suggest = Math.max(Number(r.min) * 3 - Number(r.qty), Number(r.min) || 1);
-    items.push({ name: r.name, spec: r.location, qty: suggest, unit: r.unit, lot: r.lot, reason, brandHint: r.brand || '' });
+    const reason = st.text === '需补货' ? '库存不足' : reagLotsExpired(r) ? '已过期' : me ? `剩${daysUntil(me)}天` : '库存不足';
+    const suggest = Math.max(Number(r.min || 0) - reagTotalQty(r), 0);
+    const unit = (r.lots && r.lots[0] && r.lots[0].unit) || r.unit || '件';
+    items.push({ name: r.name, spec: r.location, qty: suggest || 1, unit, lot: r.lot || (r.lots && r.lots[0] && r.lots[0].lot) || '', reason, brandHint: r.brand || '' });
   }));
   if (!items.length) { toast('当前没有需要询价的试剂'); return; }
   openInquireSheet(items, '采购清单询价（' + items.length + ' 项）', 'reagent');
@@ -2275,7 +2791,8 @@ async function runCoAReview() {
   const btn = $('coaRunBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'AI 审查中…'; }
   const out = $('coaOut');
-  if (out) out.innerHTML = `<div class="report-meta">⏳ AI 正在审查，约需 10–40 秒，请勿离开…</div>`;
+  // 全屏遮罩 + 旋转 SVG
+  showScanLoading(true, 'AI 正在审查检验报告…');
   try {
     const c = agnesCreds();
     if (!c.key) throw new Error('no key');
@@ -2318,12 +2835,15 @@ async function runCoAReview() {
     try { data = JSON.parse(content); } catch (err) { throw new Error('parse'); }
     coaResult = data;
     renderCoAResult(data);
+    showScanLoading(false);
     toast('✅ 审查完成', 3000); if (voiceOn) speak('检验报告审查完成');
   } catch (e) {
+    showScanLoading(false);
     const msg = e.message === 'parse' ? '识别结果解析失败，请换更清晰的图片或文件重试' : (e.name === 'AbortError' ? '请求超时，请重试' : 'AI 服务异常，请稍后重试');
     if (out) out.innerHTML = `<div class="out" style="background:var(--red-soft)">${msg}</div>`;
     toast(msg);
   } finally {
+    showScanLoading(false);
     if (btn) { btn.disabled = false; btn.textContent = '⚡ 智能审查'; }
   }
 }
@@ -3105,7 +3625,7 @@ function openWeeklyReport() {
       <option value="30">最近 30 天</option>
       <option value="all">全部</option>
     </select></div>
-    <button class="btn ghost" id="aiOptWeekly" style="margin-top:6px" onclick="aiOptimizeWeekly()">🤖 AI 优化</button>
+    <button class="btn gradient" id="aiOptWeekly" style="margin-top:6px" onclick="aiOptimizeWeekly()">🤖 AI 优化</button>
     <div id="wrOut"></div>`;
   openSheet(html);
   genWeekly();
@@ -3144,18 +3664,75 @@ function genWeekly() {
   renderWeeklyOut(`${exps.length} 条 · ${Object.keys(byDay).length} 天`, text, false);
 }
 function renderWeeklyOut(meta, text, canRevert) {
-  let html = `<div class="report-meta">${meta}</div>\n<div class="report-box">${esc(text)}</div>\n<button class="btn secondary" style="margin-top:12px" onclick="copyWeekly()">复制文本</button>`;
-  if (canRevert) html += `\n<button class="btn ghost" style="margin-top:10px" onclick="revertWeekly()">↩ 查看原文</button>`;
+  let html = `<div class="report-meta">${meta}</div>\n<div class="report-box">${esc(text)}</div>\n<div class="weekly-actions" style="display:flex;gap:10px;margin-top:12px">`;
+  html += `<button class="btn secondary" id="weeklyCopyBtn" onclick="copyWeekly()">📋 复制文本</button></div>`;
   const box = $('wrOut'); if (box) box.innerHTML = html;
 }
-function revertWeekly() { weeklyText = weeklyRaw; renderWeeklyOut('原文', weeklyRaw, false); }
+function revertWeekly() {
+  weeklyText = weeklyRaw;
+  const wrOut = $('wrOut');
+  if (wrOut) {
+    const meta = wrOut.querySelector('.report-meta');
+    const box = wrOut.querySelector('.report-box');
+    if (meta) meta.textContent = '原文';
+    if (box) box.textContent = esc(weeklyRaw);
+  }
+}
 function stripFence(s) { s = (s || '').trim(); const m = s.match(/^```(?:markdown|md|text)?\s*([\s\S]*?)\s*```$/i); return m ? m[1].trim() : s; }
 async function aiOptimizeWeekly() {
   if (!weeklyRaw) { toast('请先生成周报'); return; }
   if (!agnesReady()) { toast('请先在「设置 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
   const btn = $('aiOptWeekly');
-  if (btn) { btn.disabled = true; btn.textContent = 'AI 优化中…'; }
-  toast('⏳ AI 正在优化周报，约需 10–40 秒，请勿离开…', 5000);
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 AI 优化中…'; }
+  // 呼吸效果：渐变蓝 → 白色半透明 → 渐变蓝，来回脉动
+  const HALF_CYCLE = 3500; // 单程 3.5s（一呼一吸共 7s）
+  let breathTimer = null, breathDone = false;
+  const startTs = Date.now();
+  const pulseStep = () => {
+    const elapsed = Date.now() - startTs;
+    if (breathDone || !btn) return;
+    // t: 0→1→0 三角波
+    const cycleTime = elapsed % (HALF_CYCLE * 2);
+    const t = cycleTime < HALF_CYCLE ? cycleTime / HALF_CYCLE : 1 - (cycleTime - HALF_CYCLE) / HALF_CYCLE;
+    // 背景：渐变蓝 → 白色半透明 → 渐变蓝
+    const br = Math.round(94 + (255 - 94) * t);
+    const bg = Math.round(87 + (255 - 87) * t);
+    const bb = Math.round(254 + (255 - 254) * t);
+    const ba = 1 + (0.6 - 1) * t;
+    btn.style.background = `rgba(${br},${bg},${bb},${ba.toFixed(3)})`;
+    // 文字：白 → ink → 白
+    const cr = Math.round(255 + (26 - 255) * t);
+    const cg = Math.round(255 + (26 - 255) * t);
+    const cb = Math.round(255 + (46 - 255) * t);
+    btn.style.color = `rgb(${cr},${cg},${cb})`;
+    // boxShadow：蓝色阴影 → 玻璃内高光 → 蓝色阴影
+    btn.style.boxShadow = `0 ${(10 - 9 * t).toFixed(0)}px ${(24 - 18 * t).toFixed(0)}px rgba(94,87,254,${(0.34 * (1 - t)).toFixed(3)}), 0 1px 0 rgba(255,255,255,${(0.35 + 0.25 * t).toFixed(3)}) inset`;
+    // border：无 → 1px → 无
+    btn.style.border = t < 0.5 ? `${(t * 2).toFixed(2)}px solid rgba(255,255,255,${(0.6 * t * 2).toFixed(3)})` : `${(1 - (t - 0.5) * 2).toFixed(2)}px solid rgba(255,255,255,${(0.6 * (1 - (t - 0.5) * 2)).toFixed(3)})`;
+    breathTimer = requestAnimationFrame(pulseStep);
+  };
+  breathTimer = requestAnimationFrame(pulseStep);
+  const restoreBtnStyle = () => {
+    // 先阻断下一帧 pulseStep 执行，再清内联样式
+    breathDone = true;
+    if (breathTimer) { cancelAnimationFrame(breathTimer); breathTimer = null; }
+    if (btn) {
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.boxShadow = '';
+      btn.style.border = '';
+    }
+  };
+  // 不重新渲染卡片，只更新 meta 状态，保留原文占位高度
+  const wrOut = $('wrOut');
+  const existingMeta = wrOut ? wrOut.querySelector('.report-meta') : null;
+  const outBox = wrOut ? wrOut.querySelector('.report-box') : null;
+  if (existingMeta) existingMeta.textContent = 'AI 正在优化…';
+  // 锁定 report-box 当前高度防止塌缩，然后清空内容
+  if (outBox) {
+    outBox.style.minHeight = outBox.offsetHeight + 'px';
+    outBox.textContent = '';
+  }
   try {
     const c = agnesCreds();
     if (!c.key) throw new Error('no key');
@@ -3168,23 +3745,102 @@ async function aiOptimizeWeekly() {
       method: 'POST',
       headers: headers,
       signal: ctrl.signal,
-      body: JSON.stringify({ model: 'agnes-1.5-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: weeklyRaw }], temperature: 0.5, max_tokens: 4000, stream: false })
+      body: JSON.stringify({ model: 'agnes-1.5-flash', messages: [{ role: 'system', content: sys }, { role: 'user', content: weeklyRaw }], temperature: 0.5, max_tokens: 4000, stream: true })
     });
     clearTimeout(to);
     if (!res.ok) throw new Error('agnes ' + res.status);
-    const j = await res.json();
-    let content = (j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
-    content = stripFence(content);
-    if (!content) throw new Error('empty');
-    weeklyText = content;
-    renderWeeklyOut('AI 已优化', content, true);
+    // 流式读取 SSE，逐 chunk 追加到文本框
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', fullContent = '';
+    const doUpdate = () => { if (outBox) outBox.textContent = esc(fullContent); };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data:') && trimmed !== 'data: [DONE]') {
+          const jsonStr = trimmed.slice(5).trim();
+          if (!jsonStr) continue;
+          try {
+            const chunk = JSON.parse(jsonStr);
+            const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content;
+            if (delta) { fullContent += delta; doUpdate(); }
+          } catch (e) { /* 个别行解析失败则忽略 */ }
+        }
+      }
+    }
+    // 消费剩余 buf
+    if (buf.trim().startsWith('data:')) {
+      const trimmed = buf.trim();
+      if (trimmed.startsWith('data:') && trimmed !== 'data: [DONE]') {
+        const jsonStr = trimmed.slice(5).trim();
+        if (jsonStr) {
+          try {
+            const chunk = JSON.parse(jsonStr);
+            const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content;
+            if (delta) { fullContent += delta; doUpdate(); }
+          } catch (e) {}
+        }
+      }
+    }
+    fullContent = stripFence(fullContent);
+    if (!fullContent) throw new Error('empty');
+    weeklyText = fullContent;
+    if (outBox) { outBox.style.minHeight = ''; outBox.textContent = esc(fullContent); }
+    if (existingMeta) existingMeta.textContent = 'AI 已优化';
+    // 追加「查看原文」按钮到左侧，复制文本按钮渐变为蓝色
+    const wrActions = wrOut && wrOut.querySelector('.weekly-actions');
+    if (wrActions) {
+      // 左侧追加查看原文
+      if (!wrActions.querySelector('.weekly-revert')) {
+        const rvBtn = document.createElement('button');
+        rvBtn.className = 'btn ghost weekly-revert';
+        rvBtn.style.cssText = 'font-size:16px;font-weight:600';
+        rvBtn.textContent = '📄 查看原文';
+        rvBtn.onclick = revertWeekly;
+        wrActions.insertBefore(rvBtn, wrActions.firstChild);
+      }
+      // 复制文本按钮变为渐变蓝（切换类，保留边缘高光）
+      const cpBtn = wrActions.querySelector('#weeklyCopyBtn');
+      if (cpBtn) {
+        cpBtn.className = 'btn gradient';
+      }
+    }
     toast('✅ AI 已优化周报', 3500); if (voiceOn) speak('AI 已优化');
   } catch (e) {
     const msg = (e && e.name === 'AbortError') ? 'AI 服务无响应（超时，模型较慢或网络不佳）' : ('AI 优化失败：' + (e.message || e));
+    // 如果流式至少输出了一些内容，保留它
+    if (fullContent) {
+      weeklyText = fullContent;
+      if (outBox) { outBox.style.minHeight = ''; outBox.textContent = esc(fullContent); }
+      if (existingMeta) existingMeta.textContent = 'AI 已优化（部分完成）';
+        // 同样追加查看原文 + 渐变复制按钮
+        const wrActions = wrOut && wrOut.querySelector('.weekly-actions');
+        if (wrActions) {
+          if (!wrActions.querySelector('.weekly-revert')) {
+            const rvBtn = document.createElement('button');
+            rvBtn.className = 'btn ghost weekly-revert';
+            rvBtn.style.cssText = 'font-size:16px;font-weight:600';
+            rvBtn.textContent = '📄 查看原文';
+            rvBtn.onclick = revertWeekly;
+            wrActions.insertBefore(rvBtn, wrActions.firstChild);
+          }
+          const cpBtn = wrActions.querySelector('#weeklyCopyBtn');
+          if (cpBtn) {
+            cpBtn.className = 'btn gradient';
+          }
+        }
+    }
     toast('❌ ' + msg + '，请重试或在「设置」重测连通', 4500);
     console.warn('[Agnes] 周报优化失败：', e);
   } finally {
+    restoreBtnStyle();
     if (btn) { btn.disabled = false; btn.textContent = '🤖 AI 优化'; }
+    if (outBox && outBox.style.minHeight) outBox.style.minHeight = '';
   }
 }
 function copyWeekly() { copyText(weeklyText); }
@@ -3338,7 +3994,10 @@ async function aiStructure() {
   if (!agnesReady()) { toast('请先在「设置 → API 与密钥」配置 Agnes（留空即用内置默认）'); return; }
   const aiBtn = $('aiBtn'); const oldTxt = aiBtn ? aiBtn.textContent : '';
   if (aiBtn) { aiBtn.disabled = true; aiBtn.textContent = 'AI 整理中…'; }
-  toast('⏳ AI 正在整理，约需 10–40 秒，请稍候…', 5000);
+  // 显示全屏 loading
+  const origText = document.getElementById('_scanLoadingText');
+  if (origText) origText.textContent = 'AI 正在整理…';
+  showScanLoading(true);
   try {
     const data = await callAgnesParse(raw);
     if (data && (data.title || (Array.isArray(data.steps) && data.steps.length))) {
@@ -3355,6 +4014,7 @@ async function aiStructure() {
     toast('❌ ' + msg + '，已用本地整理', 4500);
     console.warn('[Agnes] 整理失败：', e);
   } finally {
+    showScanLoading(false);
     if (aiBtn) { aiBtn.disabled = false; aiBtn.textContent = oldTxt || '🤖 AI 智能整理'; }
   }
 }
@@ -3471,11 +4131,10 @@ function checkExpNotify() {
   if (!s.notifyExp || !notifySupported() || Notification.permission !== 'granted') return;
   const today = new Date().toISOString().slice(0, 10);
   if (s.lastNotifyDate === today) return; // 每天最多一次
-  const ed = expDays();
   const reags = load(STORE.reag, []);
-  const need = reags.filter((r) => { const d = daysUntil(r.expiry); return (d >= 0 && d <= ed) || d < 0; });
+  const need = reags.filter((r) => reagLotsExpired(r) || reagLotsExpiring(r));
   if (need.length) {
-    const expired = need.filter((r) => daysUntil(r.expiry) < 0).length;
+    const expired = need.filter((r) => reagLotsExpired(r)).length;
     const title = expired ? `⚠️ ${expired} 项已过期、${need.length - expired} 项临期` : `⏰ ${need.length} 项试剂临期`;
     const body = need.slice(0, 4).map((r) => r.name).join('、') + (need.length > 4 ? ' 等' : '');
     swNotify(title, body).catch((e) => console.warn('[notify] showNotification failed', e));
@@ -3501,7 +4160,7 @@ function saveExpDays() {
    首次引导
    ============================================================ */
 const ONBOARDED = 'bench.onboarded';
-function maybeOnboard() { if (!localStorage.getItem(ONBOARDED)) showOnboarding(false); }
+function maybeOnboard() { if (!load(ONBOARDED, false)) showOnboarding(false); }
 function openOnboarding() { showOnboarding(true); }
 function showOnboarding(fromSettings) {
   const feats = [
@@ -3522,7 +4181,7 @@ function showOnboarding(fromSettings) {
   </div>`;
   openModal(html);
 }
-function finishOnboarding() { try { localStorage.setItem(ONBOARDED, '1'); } catch (e) {} closeModal(); }
+function finishOnboarding() { save(ONBOARDED, true); closeModal(); }
 
 /* ---------------- 复制文本 ---------------- */
 function copyText(text, msg) {
@@ -3676,27 +4335,40 @@ window.addEventListener('scroll', onScrollTitle, { passive: true });
 window.addEventListener('resize', () => { _barBaseH = 0; _titleF = -1; updateTitleScale(); }, { passive: true });
 
 /* ---------------- 启动 ---------------- */
-seed();
-const _openExp = openExpSheet;
-openExpSheet = function (id) {
-  _openExp(id);
-  bindVoiceToggle();
-  const sb = $('structureBtn');
-  if (sb) sb.onclick = () => {
-    currentSteps = structure($('expRaw').value);
-    renderSteps();
-    const n = currentSteps.length; toast('已整理 ' + n + ' 个步骤'); speak('已整理 ' + n + ' 个步骤');
+(async function boot() {
+  try {
+    await ensureDB();
+  } catch (e) {
+    console.warn('IndexedDB 初始化失败，使用 localStorage', e);
+    _dbReady = false;
+  }
+  seed();
+  const _openExp = openExpSheet;
+  openExpSheet = function (id) {
+    _openExp(id);
+    bindVoiceToggle();
+    const sb = $('structureBtn');
+    if (sb) sb.onclick = () => {
+      currentSteps = structure($('expRaw').value);
+      renderSteps();
+      const n = currentSteps.length; toast('已整理 ' + n + ' 个步骤'); speak('已整理 ' + n + ' 个步骤');
+    };
   };
-};
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
-}
-ensureTemplateDefaults();
-migrateTemplates();
-migrateTemplateConsumables();
-migratePresetTemplates();
-migrateExperiments();
-maybeOnboard();
-renderAll();
-updateTitleScale();
-setTimeout(checkExpNotify, 1500);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
+  }
+  ensureTemplateDefaults();
+  migrateTemplates();
+  migrateTemplateConsumables();
+  migratePresetTemplates();
+  migrateExperiments();
+  migrateReagLots();
+  maybeOnboard();
+  renderAll();
+  updateTitleScale();
+  // 隐藏启动加载指示器
+  const bl = $('bootLoader');
+  if (bl) bl.classList.add('hide');
+  setTimeout(() => { if (bl) bl.remove(); }, 400);
+  setTimeout(checkExpNotify, 1500);
+})();

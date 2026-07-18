@@ -170,6 +170,7 @@ body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 .reag-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
 .reag-grid .card{margin-bottom:0;padding:12px;display:flex;flex-direction:row;align-items:stretch;gap:8px;position:relative}
 .reag-grid .card .card-body{flex:1;min-width:0;display:flex;flex-direction:column}
+.reag-grid .card .row1 h3{padding-right:64px}
 .reag-grid .card .meta{font-size:11px;color:var(--muted);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reag-grid .card .card-actions{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:auto}
 .reag-grid .card .card-actions .tag{flex-shrink:0}
@@ -299,7 +300,9 @@ textarea{min-height:96px;resize:vertical}
 .btn:active{transform:scale(.985);transition-duration:0s}
 .btn.secondary{background:rgba(255,255,255,.6);color:var(--ink);box-shadow:var(--glass-shadow), 0 1px 0 rgba(255,255,255,.6) inset;border:1px solid rgba(255,255,255,.6)}
 .btn.danger{background:var(--red-soft);color:var(--red);box-shadow:none}
-.btn.ghost{background:rgba(255,255,255,.5);color:var(--blue);border:1px solid rgba(0,113,227,.35);box-shadow:none}
+.btn.ghost{background:rgba(255,255,255,.5);color:var(--blue);border:0;box-shadow:0 1px 0 rgba(255,255,255,.55) inset}
+/* 渐变蓝色按钮（AI 优化完成态） */
+.btn.gradient{background:linear-gradient(135deg,#5e57fe,#34c8ff);color:#fff;border:0;font-weight:600;box-shadow:0 4px 12px rgba(94,87,254,.28), 0 1px 0 rgba(255,255,255,.35) inset}
 .btn-row{display:flex;gap:10px;margin-top:6px}
 .btn-row .btn{flex:1}
 
@@ -658,3 +661,54 @@ select.sel:focus{border-color:var(--accent-2)}
 .list-row .lr-title { letter-spacing: -0.1px; }
 .section-title { letter-spacing: 0.2px; }
 .api-row-title { letter-spacing: -0.1px; }
+
+/* ⑫ 批次展开明细 */
+/* ⑬ Sheet 内批次编辑列表 */
+.lot-sheet-list { margin-bottom: 4px; }
+.lot-sheet-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.lot-sheet-row:last-child { border-bottom: none; }
+.lot-sheet-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  flex: 1;
+}
+.lot-sheet-field { display: flex; flex-direction: column; gap: 1px; }
+.lot-sheet-field label { font-size: 10px; color: var(--muted); }
+.lot-sheet-field input,
+.lot-sheet-field select {
+  font-size: 13px; padding: 5px 8px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--glass); outline: none;
+}
+.lot-sheet-field select { appearance: auto; }
+
+/* 单位标签管理 */
+.unit-tag {
+  display: inline-block; padding: 4px 10px; border-radius: 8px;
+  background: var(--glass); border: 1px solid var(--line);
+  font-size: 13px; cursor: default;
+}
+.unit-tag.custom {
+  cursor: pointer;
+}
+.unit-tag.custom:hover {
+  background: rgba(255,59,48,.08); border-color: var(--red,#ff3b30);
+}
+
+/* AI 拍照识别按钮 */
+.ai-scan-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  flex: none; padding: 0 11px; height: 40px; border-radius: var(--radius-sm);
+  background: var(--accent); border: 0;
+  cursor: pointer; font-size: 14px; font-weight: 600; color: #fff;
+  box-shadow: 0 4px 12px rgba(94,87,254,.28), 0 1px 0 rgba(255,255,255,.25) inset;
+  transition: transform .2s cubic-bezier(.32,.72,0,1); flex-shrink: 0;
+}
+.ai-scan-btn:active { transform: scale(.96); }

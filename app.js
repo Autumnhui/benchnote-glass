@@ -653,10 +653,9 @@ function saveShareImage() {
 function shareVia() {
   const text = `推荐一个好用的实验室助手「${SHARE_TITLE}」——语音/文字记实验、AI 一键整理成规范记录，试剂耗材库存管理、Protocol 模板、二维码标签，打开即用，免安装。\n${SHARE_URL}`;
   if (navigator.share) {
-    navigator.share({ title: SHARE_TITLE, text, url: SHARE_URL }).catch(() => {});
+    navigator.share({ title: SHARE_TITLE, text, url: SHARE_URL }).then(() => toast('已分享，快去发送吧')).catch(() => {});
   } else {
-    fallbackCopy(text);
-    toast('介绍文本已复制，去粘贴分享吧');
+    fallbackCopy(text, '已复制，快去分享吧');
     closeSheet();
   }
 }
@@ -676,10 +675,11 @@ function renderOverview() {
   const low = reags.filter((r) => Number(r.qty) <= Number(r.min || 0)).length;
 
   let html = `<div class="statbar">
-    <div class="s"><span class="ico">📝</span><div class="num">${weekExp}</div><div class="lbl">本周记录</div></div>
-    <div class="s"><span class="ico">🧪</span><div class="num">${reags.length}</div><div class="lbl">试剂种类</div></div>
-    <div class="s"><span class="ico">⏳</span><div class="num">${expiring}</div><div class="lbl">30天临期</div></div>
-    <div class="s"><span class="ico">🛒</span><div class="num">${low + expired}</div><div class="lbl">需处理</div></div>
+    <div class="s tap" onclick="switchView('experiments')"><span class="ico">📝</span><div class="num">${weekExp}</div><div class="lbl">本周记录</div></div>
+    <div class="s tap" onclick="switchView('reagents');setReagSeg('reag');setReagFilter('all')"><span class="ico">🧪</span><div class="num">${reags.length}</div><div class="lbl">试剂种类</div></div>
+    <div class="s tap" onclick="switchView('reagents');setReagSeg('reag');setReagFilter('expiring')"><span class="ico">⏳</span><div class="num">${expiring}</div><div class="lbl">30天临期</div></div>
+    <div class="s tap" onclick="switchView('reagents');setReagSeg('reag');setReagFilter('low')"><span class="ico">🛒</span><div class="num">${low}</div><div class="lbl">需补货</div></div>
+    <div class="s tap" onclick="switchView('reagents');setReagSeg('reag');setReagFilter('expired')"><span class="ico">🗑️</span><div class="num">${expired}</div><div class="lbl">已过期</div></div>
   </div>`;
 
   // 快捷入口（从工具中自行配置，最多 8 个）
@@ -703,7 +703,7 @@ function renderOverview() {
     alerts.forEach((a) => {
       html += `<div class="alert"><div class="dot" style="background:${a.color}"></div><div class="txt"><b>${esc(a.name)}</b><p>${esc(a.desc)}</p></div><button class="inquire-mini" onclick="event.stopPropagation();inquireReag('${a.id}')">询价</button></div>`;
     });
-    html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${alerts.length}）</button>`;
+    html += `<button class="btn" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${alerts.length}）</button>`;
   } else {
     html += '<div class="section-title">状态</div><div class="card"><div class="row1"><h3>一切正常</h3></div><div class="meta">无临期、过期或低库存试剂。</div></div>';
   }
@@ -713,7 +713,7 @@ function renderOverview() {
   exps.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3).forEach((e) => {
     html += `<div class="card tap" onclick="openExpSheet('${e.id}')"><div class="row1"><h3>${esc(e.title)}</h3></div><div class="meta">${fmtDate(e.createdAt)} · ${e.steps.length} 个步骤</div><div class="snippet">${esc(e.raw)}</div></div>`;
   });
-  if (exps.length > 3) html += `<div class="more-link" onclick="switchView('experiments')">查看全部 ${exps.length} 条实验 ›</div>`;
+  if (exps.length) html += `<button class="btn" style="margin-top:8px" onclick="switchView('experiments')">📋 查看所有实验</button>`;
   if (!exps.length) {
     html += `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 3v18"/><path d="M11 8h5"/><path d="M11 12h5"/><path d="M11 16h3"/></svg><p><b>还没有实验记录</b></p><p>用语音或文字记录第一条</p><button class="btn" style="margin-top:14px" onclick="openExpSheet()">+ 新建实验记录</button></div>`;
   }
@@ -839,12 +839,13 @@ function renderReagents() {
   });
   html += '</div>';
   html += `<div class="reag-batch-row">
-    <button class="btn secondary" style="flex:1" onclick="openReagBatch()">📥 批量导入</button>
+    <button class="btn" style="flex:1" onclick="openReagBatch()">📥 批量导入</button>
     <button class="btn secondary" style="flex:1" onclick="toggleReagSelect()">${reagSelectMode ? '完成' : '🗂️ 批量管理'}</button>
   </div>`;
   if (reagSelectMode) html += batchToolbarHTML('reag');
   if (!list.length) html += emptyState('没有符合条件的试剂', '调整筛选或点 + 添加');
   else {
+    html += '<div class="reag-grid">';
     list.forEach((r) => {
       const st = reagStatus(r);
       const tagCls = st.key === 'ok' ? 'ok' : st.key === 'warn' ? 'warn' : 'bad';
@@ -855,16 +856,22 @@ function renderReagents() {
       const click = reagSelectMode ? `toggleReagSel('${r.id}')` : `openReagSheet('${r.id}')`;
       const chk = reagSelectMode ? '<div class="chk"></div>' : '';
       const pinMark = r.pinned ? ' · 置顶' : '';
+      const tagHtml = st.key === 'ok' ? (r.pinned ? '<span class="tag info">置顶</span>' : '') : `<span class="tag ${tagCls}">${st.text}${pinMark}</span>`;
       html += `<div class="${cls}" onclick="${click}">
         ${chk}
-        <div class="row1"><h3>${esc(r.name)}</h3>${st.key === 'ok' ? (r.pinned ? '<span class="tag info">置顶</span>' : '') : `<span class="tag ${tagCls}">${st.text}${pinMark}</span>`}</div>
-        <div class="meta-row"><div class="meta">库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>${inquireBtn ? `<div class="meta-act">${inquireBtn}</div>` : ''}</div>
-        <div class="meta meta-expiry">效期 ${esc(r.expiry)} · 货号 ${esc(r.lot)}</div>
+        <div class="card-body">
+        <div class="row1"><h3>${esc(r.name)}</h3></div>
+        <div class="meta">${esc(r.supplier || r.brand || '—')}${r.lot ? ' · 货号 ' + esc(r.lot) : ''}</div>
+        <div class="meta">${(r.batch ? '批号 ' + esc(r.batch) + ' · ' : '')}库存 ${r.qty}${r.unit} · ${esc(r.location)}</div>
+        <div class="meta" style="margin-top:2px">效期 ${esc(r.expiry)}</div>
+        </div>
+        <div class="card-actions">${tagHtml ? tagHtml : ''}${inquireBtn || ''}</div>
       </div>`;
     });
+    html += '</div>';
   }
   const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= expDays() && daysUntil(r.expiry) >= 0));
-  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
+  if (needBuy.length) html += `<button class="btn" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
 /* ---------------- 试剂：批量管理 ---------------- */
@@ -973,7 +980,7 @@ function renderExpiryCalendar() {
   });
   if (!any) html += emptyState(calYear + '年' + (calMonth+1) + '月无到期试剂', '');
   const needBuy = reags.filter((r) => Number(r.qty) <= Number(r.min || 0) || daysUntil(r.expiry) < 0 || (daysUntil(r.expiry) <= expDays() && daysUntil(r.expiry) >= 0));
-  if (needBuy.length) html += `<button class="btn secondary" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
+  if (needBuy.length) html += `<button class="btn" style="margin-top:6px" onclick="inquireExpiring()">📤 一键询价全部（${needBuy.length}）</button>`;
   $('view-reagents').innerHTML = html;
 }
 function calPrevMonth() { if (--calMonth < 0) { calMonth = 11; calYear--; } renderExpiryCalendar(); }
@@ -1003,8 +1010,8 @@ function renderFreezer() {
   html += '</div>';
   html += `<input class="search" id="freezerSearch" placeholder="搜索本盒样本 · 高亮匹配格子" value="${esc(freezerSearch)}" oninput="onFreezerSearch(this.value)">`;
   html += `<div class="freezer-actions">
-    <button class="btn secondary mini" onclick="openFreezerBatch()">📥 批量填充</button>
-    <button class="btn secondary mini" onclick="toggleFreezerMulti()">${freezerMulti ? '完成' : '🗂️ 批量管理'}</button>
+    <button class="btn" style="flex:1" onclick="openFreezerBatch()">📥 批量填充</button>
+    <button class="btn secondary" style="flex:1" onclick="toggleFreezerMulti()">${freezerMulti ? '完成' : '🗂️ 批量管理'}</button>
   </div>`;
   if (freezerMulti) {
     html += `<div class="fm-toolbar">
@@ -1320,7 +1327,7 @@ function renderMore() {
       <input id="setExpDays" type="number" min="1" max="365" value="${st.expDays || 30}">
       <div class="help">效期在此天数内的试剂标记为「临期」并计入提醒（默认 30）。</div>
     </div>
-    <button class="btn secondary" onclick="saveExpDays()">保存阈值</button>
+    <button class="btn" onclick="saveExpDays()">保存阈值</button>
   </div>`;
   html += `<div class="list-row" onclick="${notifyOn ? 'setNotify(false)' : 'enableExpNotify()'}">
     <div class="lr-ico">🔔</div>
@@ -1329,8 +1336,10 @@ function renderMore() {
   </div>`;
   html += `<button class="btn ghost" style="margin-top:8px" onclick="testExpNotify()">🔔 测试通知</button>`;
   html += '<div class="section-title">数据备份</div>';
-  html += `<button class="btn" onclick="exportData()">📤 导出全部数据</button>
-    <button class="btn secondary" style="margin-top:10px" onclick="pickImport()">📥 导入数据</button>
+  html += `<div class="btn-row">
+      <button class="btn" onclick="exportData()">📤 导出</button>
+      <button class="btn secondary" onclick="pickImport()">📥 导入</button>
+    </div>
     <input id="importFile" type="file" accept="application/json,.json" style="display:none" onchange="onImportFile(this)">
     <div class="help">导出为 JSON 文件；换设备时导入即可恢复全部记录与配置。</div>`;
   html += '<div class="section-title">帮助</div>';
@@ -1718,7 +1727,10 @@ function openReagSheet(id) {
   let html = `<div class="grabber"></div><h2>${r ? '库存详细' : '添加库存'}</h2>
     <p class="hint">记录货号、效期与安全库存，系统自动提醒临期与补货。</p>
     <div class="field"><label>名称</label><input id="rName" value="${v('name')}" placeholder="如：PBS 缓冲液"></div>
-    <div class="field"><label>品牌</label><input id="rSup" value="${v('supplier')}" placeholder="如：Thermo / Sigma（选填）"></div>
+    <div class="field-row">
+      <div class="field"><label>品牌</label><input id="rSup" value="${v('supplier')}" placeholder="如：Thermo / Sigma"></div>
+      <div class="field"><label>货号</label><input id="rLot" value="${v('lot')}" placeholder="如：PB2605"></div>
+    </div>
     <div class="field-row">
       <div class="field"><label>数量 / 单位</label>
         <div style="display:flex;gap:10px"><input id="rQty" type="number" value="${v('qty')}" placeholder="数量" style="flex:1"><input id="rUnit" value="${v('unit') || '瓶'}" placeholder="单位" style="max-width:120px"></div></div>
@@ -1726,8 +1738,8 @@ function openReagSheet(id) {
     </div>
     <div class="field"><label>存放位置</label><input id="rLoc" value="${v('location')}" placeholder="如：4℃柜A"></div>
     <div class="field-row">
+      <div class="field"><label>批号</label><input id="rBatch" value="${v('batch')}" placeholder="如：B20240301（选填）"></div>
       <div class="field"><label>有效期</label><input id="rExp" type="date" value="${v('expiry')}"></div>
-      <div class="field"><label>货号</label><input id="rLot" value="${v('lot')}" placeholder="如：PB2605"></div>
     </div>
     <div class="field"><label>品牌偏好（询价时使用）</label><input id="rBrand" value="${v('brand')}" placeholder="如：迈博瑞 / Lonza / Solarbio（选填）"></div>
     <div class="btn-row" style="margin-top:8px">
@@ -1740,7 +1752,7 @@ function openReagSheet(id) {
 function saveReag() {
   const name = $('rName').value.trim();
   if (!name) { toast('请填写名称'); return; }
-  const r = { name, lot: $('rLot').value.trim(), qty: $('rQty').value, unit: $('rUnit').value.trim() || '瓶',
+  const r = { name, lot: $('rLot').value.trim(), batch: ($('rBatch') ? $('rBatch').value.trim() : ''), qty: $('rQty').value, unit: $('rUnit').value.trim() || '瓶',
     location: $('rLoc').value.trim(), expiry: $('rExp').value, min: $('rMin').value || 0, supplier: $('rSup').value.trim(), brand: ($('rBrand') ? $('rBrand').value.trim() : '') };
   const reags = load(STORE.reag, []);
   if (editingReagId) { const i = reags.findIndex((x) => x.id === editingReagId); reags[i] = { ...reags[i], ...r }; }
@@ -1754,12 +1766,12 @@ function deleteReag() {
 }
 
 /* ---------------- 试剂批量导入（文本 + Excel） ---------------- */
-const REAG_TPL_COLS = ['名称', '批号', '数量', '单位', '位置', '效期(YYYY-MM-DD)'];
+const REAG_TPL_COLS = ['名称', '品牌', '货号', '批号', '数量', '单位', '位置', '效期(YYYY-MM-DD)'];
 let reagExcelRows = [];
 function openReagBatch() {
   reagExcelRows = [];
   let html = `<div class="grabber"></div><h2>批量导入试剂耗材</h2>
-    <p class="hint">两种方式：① 粘贴多行文本（字段用 <b>逗号 / 制表符</b> 分隔：名称, 批号, 数量, 单位, 位置, 效期）；② 下载 Excel 模板填写后导入。</p>
+    <p class="hint">两种方式：① 粘贴多行文本（字段用 <b>逗号 / 制表符</b> 分隔：名称, 品牌, 货号, 批号, 数量, 单位, 位置, 效期）；② 下载 Excel 模板填写后导入。</p>
     <div class="btn-row" style="margin:4px 0 10px">
       <button class="btn ghost" onclick="downloadReagTemplate()">⬇️ 下载 Excel 模板</button>
       <button class="btn ghost" onclick="document.getElementById('rbFile').click()">📂 导入 Excel</button>
@@ -1823,7 +1835,9 @@ function mapReagExcelRows(rows) {
     if (namePos >= 0) {
       hi = i;
       idx.name = namePos;
-      idx.lot = s.findIndex((c) => c.includes('批号') || c.includes('货号'));
+      idx.supplier = s.findIndex((c) => c.includes('品牌'));
+      idx.lot = s.findIndex((c) => c.includes('货号'));
+      idx.batch = s.findIndex((c) => c.includes('批号'));
       idx.qty = s.findIndex((c) => c.includes('数量'));
       idx.unit = s.findIndex((c) => c.includes('单位'));
       idx.location = s.findIndex((c) => c.includes('位置'));
@@ -1832,7 +1846,7 @@ function mapReagExcelRows(rows) {
     }
   }
   if (hi < 0) { // 无表头：按默认顺序假设
-    Object.assign(idx, { name: 0, lot: 1, qty: 2, unit: 3, location: 4, expiry: 5 });
+    Object.assign(idx, { name: 0, supplier: 1, lot: 2, batch: 3, qty: 4, unit: 5, location: 6, expiry: 7 });
     hi = -1;
   }
   const out = [];
@@ -1845,12 +1859,14 @@ function mapReagExcelRows(rows) {
     else if (typeof qty === 'string') { const n = parseFloat(qty); if (!isNaN(n)) qty = n; }
     out.push({
       name,
+      supplier: String(r[idx.supplier] == null ? '' : r[idx.supplier]).trim(),
       lot: String(r[idx.lot] == null ? '' : r[idx.lot]).trim(),
+      batch: String(r[idx.batch] == null ? '' : r[idx.batch]).trim(),
       qty,
       unit: (String(r[idx.unit] == null ? '' : r[idx.unit]).trim()) || '瓶',
       location: String(r[idx.location] == null ? '' : r[idx.location]).trim(),
       expiry: String(r[idx.expiry] == null ? '' : r[idx.expiry]).trim(),
-      min: 0, supplier: ''
+      min: 0
     });
   }
   return out;
@@ -1860,9 +1876,9 @@ function parseReagLines(text) {
   text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).forEach((line) => {
     const parts = line.includes('\t') ? line.split('\t') : line.split(/[,，]/);
     const f = parts.map((s) => s.trim());
-    const [name, lot, qty, unit, location, expiry] = f;
+    const [name, supplier, lot, batch, qty, unit, location, expiry] = f;
     if (!name) return;
-    out.push({ name, lot: lot || '', qty: qty || 1, unit: unit || '瓶', location: location || '', expiry: expiry || '', min: 0, supplier: '' });
+    out.push({ name, supplier: supplier || '', lot: lot || '', batch: batch || '', qty: qty || 1, unit: unit || '瓶', location: location || '', expiry: expiry || '', min: 0 });
   });
   return out;
 }
@@ -1874,7 +1890,7 @@ function renderReagBatchPreview() {
   const dupCount = all.filter((r) => load(STORE.reag, []).some((x) => x.name === r.name && x.lot === r.lot)).length;
   let inner = '';
   if (reagExcelRows.length) inner += `<div class="bp-row ok">📊 Excel：${reagExcelRows.length} 条</div>`;
-  if (arr.length) inner += arr.slice(0, 5).map((r) => `<div class="bp-row">${esc(r.name)} · ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 5 ? `<div class="bp-row muted">…文本共 ${arr.length} 条</div>` : '');
+  if (arr.length) inner += arr.slice(0, 5).map((r) => `<div class="bp-row">${esc(r.supplier || '—')} · ${esc(r.name)} · 货号 ${esc(r.lot || '—')} · ${esc(r.qty)}${esc(r.unit)} · ${esc(r.location || '—')}</div>`).join('') + (arr.length > 5 ? `<div class="bp-row muted">…文本共 ${arr.length} 条</div>` : '');
   if (dupCount) inner += `<div class="bp-row warn">⚠ ${dupCount} 条与已有试剂同名同批号，将更新而非新增</div>`;
   if (!total) inner = '<div class="bp-row muted">尚未解析到试剂（可粘贴文本或导入 Excel）</div>';
   box.innerHTML = inner;
@@ -2031,14 +2047,14 @@ function openInquireSheet(items, title, ctx) {
     </div>
     <div class="copy-box" id="inquireText" style="margin-top:14px">${esc(text)}</div>
     <div class="btn-row" style="margin-top:12px">
-      <button class="btn secondary" onclick="copyInquireText()">📋 复制询价文本</button>
-      <button class="btn" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
+      <button class="btn" onclick="copyInquireText()">📋 复制询价文本</button>
+      <button class="btn secondary" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
     </div>
     <div class="supplier-brand">${esc(sp.brandText)}</div>
     ${equipLine}`;
   openSheet(html);
 }
-function copyInquireText() { const t = $('inquireText').textContent; const who = _activeSupplier ? _activeSupplier.contact : SUPPLIER.contact; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + who), () => toast('复制失败')); }
+function copyInquireText() { copyText($('inquireText').textContent, '已复制，快去分享吧'); }
 /* 通用询价入口（更多页供应商卡片）：按 ctx 路由到对应供应商，打开空白询价单让填写 */
 function inquireSupplier(ctx) {
   const sp = pickSupplier(ctx || 'reagent');
@@ -2100,14 +2116,14 @@ function contactService(it) {
     </div>
     <div class="copy-box" id="svcText">${esc(text)}</div>
     <div class="btn-row" style="margin-top:12px">
-      <button class="btn secondary" onclick="copyServiceText()">📋 复制服务需求</button>
-      <button class="btn" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
+      <button class="btn" onclick="copyServiceText()">📋 复制服务需求</button>
+      <button class="btn secondary" onclick="window.location.href='${sp.phoneTel}'">📞 拨号</button>
     </div>
     <div class="supplier-brand">${esc(sp.brandText)}</div>
     ${equipLine}`;
   openSheet(html);
 }
-function copyServiceText() { const t = $('svcText').textContent; const who = _activeSupplier ? _activeSupplier.contact : SUPPLIER.contact; navigator.clipboard?.writeText(t).then(() => toast('已复制，去微信粘贴给 ' + who), () => toast('复制失败')); }
+function copyServiceText() { copyText($('svcText').textContent, '已复制，快去分享吧'); }
 
 /* ④ 实验模板推荐耗材 → 询价 */
 function inquireTemplate(tplId) {
@@ -2370,7 +2386,7 @@ function copyCoA() {
 let webTimerId = null, webTimerEnd = 0, _wakeLock = null, webTimerLabel = '';
 function openTimerTool() {
   let html = `<div class="grabber"></div><h2>计时器</h2>
-    <p class="hint">点“启动手机计时器”直接唤起安卓时钟 / iPhone 日历闹钟（自动适配）。也可使用网页计时兜底。</p>
+    <p class="hint">推荐用网页计时（到点闹铃+震动，不依赖 App）；也可尝试跳转手机时钟 App。</p>
     <div class="field"><label>时长（分钟）</label><input id="tMin" type="number" value="10" min="0.1" step="0.5"></div>
     <div class="field"><label>标签（可选）</label><input id="tLabel" placeholder="如：A 管 4000g 离心"></div>
     <div class="timer-presets">
@@ -2380,8 +2396,8 @@ function openTimerTool() {
       <div class="p" onclick="setTimerPreset(30)">30 分</div>
       <div class="p" onclick="setTimerPreset(60)">60 分</div>
     </div>
-    <button class="btn" onclick="launchPhoneTimer()">启动手机计时器</button>
-    <button class="btn secondary" style="margin-top:10px" onclick="startWebTimer()">用网页计时（需保持屏幕常亮）</button>
+    <button class="btn" onclick="startWebTimer()">▶ 用网页计时（推荐）</button>
+    <button class="btn secondary" style="margin-top:10px" onclick="launchPhoneTimer()">📱 跳转手机时钟 App</button>
     <div class="timer-result" id="webTimer">
       <div class="timer-big" id="wtBig">00:00</div>
       <div class="timer-actions"><button class="btn danger" onclick="stopWebTimer()">停止</button></div>
@@ -2398,11 +2414,12 @@ function launchPhoneTimer() {
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   if (isAndroid) {
     const intent = `intent://com.google.android.deskclock/#Intent;action=android.intent.action.SET_TIMER;package=com.google.android.deskclock;S.android.intent.extra.MESSAGE=${encodeURIComponent(label)};i.android.intent.extra.LENGTH_SECONDS=${sec};end`;
-    toast('正在唤起手机计时器…');
+    toast('正在唤起手机时钟…');
     window.location.href = intent;
-    setTimeout(() => { toast('若未自动跳转，请手动打开时钟 App 设置计时'); }, 1800);
+    setTimeout(() => { toast('若未跳转，手机可能未装谷歌时钟，请用上方网页计时'); }, 1600);
   } else if (isIOS) {
     iosCalendarTimer(sec, label);
+    toast('iOS 无法直开时钟App，已生成日历提醒，点"添加"即可到点提醒');
   } else {
     startWebTimer();
   }
@@ -2608,38 +2625,66 @@ function calcDil() {
    ============================================================ */
 function openUnitTool() {
   let html = `<div class="grabber"></div><h2>单位换算</h2>
-    <p class="hint">输入一个数值，即时显示同量程各单位等价量。</p>
-    <div class="field"><label>类别</label><select id="uCat" onchange="convUnit()">
-      <option value="temp">温度</option><option value="mass">质量</option><option value="vol">体积</option></select></div>
-    <div class="field"><label>数值</label><input id="uVal" type="number" value="37" oninput="convUnit()"></div>
-    <div class="field"><label>单位</label><select id="uFrom" onchange="convUnit()"></select></div>
+    <p class="hint">选类别，输数值，点「换算」查看结果。</p>
+    <div class="field"><label>类别</label><select id="uCat" onchange="switchUnitCat()">
+      <option value="temp">温度</option>
+      <option value="mass">质量</option>
+      <option value="vol">体积</option>
+      <option value="molar">摩尔质量（g↔mol）</option>
+      <option value="conc">浓度（mol/L↔g/L）</option>
+    </select></div>
+    <div id="uFields"></div>
+    <button class="btn" style="margin-top:8px" onclick="convUnit()">换算</button>
     <div id="uOut"></div>`;
   openSheet(html);
-  convUnit();
+  switchUnitCat();
 }
 const UNIT_DEFS = {
-  temp: { C: (v) => v, K: (v) => v + 273.15, F: (v) => v * 9 / 5 + 32,
-    inv: { C: (v) => v, K: (v) => v - 273.15, F: (v) => (v - 32) * 5 / 9 }, units: ['C', 'K', 'F'] },
-  mass: { g: (v) => v, mg: (v) => v / 1000, ug: (v) => v / 1e6,
-    inv: { g: (v) => v, mg: (v) => v * 1000, ug: (v) => v * 1e6 }, units: ['g', 'mg', 'μg'] },
-  vol: { L: (v) => v, mL: (v) => v / 1000, uL: (v) => v / 1e6,
-    inv: { L: (v) => v, mL: (v) => v * 1000, uL: (v) => v * 1e6 }, units: ['L', 'mL', 'μL'] }
+  temp: { units: ['C', 'K', 'F'], toBase: { C: (v) => v, K: (v) => v - 273.15, F: (v) => (v - 32) * 5 / 9 }, fromBase: { C: (v) => v, K: (v) => v + 273.15, F: (v) => v * 9 / 5 + 32 }, label: { C: '℃', K: 'K', F: '℉' } },
+  mass: { units: ['g', 'mg', 'ug'], toBase: { g: (v) => v, mg: (v) => v / 1000, ug: (v) => v / 1e6 }, fromBase: { g: (v) => v, mg: (v) => v * 1000, ug: (v) => v * 1e6 }, label: { g: 'g', mg: 'mg', ug: 'μg' } },
+  vol: { units: ['L', 'mL', 'uL'], toBase: { L: (v) => v, mL: (v) => v / 1000, uL: (v) => v / 1e6 }, fromBase: { L: (v) => v, mL: (v) => v * 1000, uL: (v) => v * 1e6 }, label: { L: 'L', mL: 'mL', uL: 'μL' } }
 };
-function convUnit() {
-  const cat = $('uCat').value || 'temp';
-  const v = parseFloat($('uVal').value);
-  const def = UNIT_DEFS[cat];
-  if (!def) return;
-  const fromSel = $('uFrom');
-  if (fromSel && fromSel.dataset.cat !== cat) {
-    fromSel.innerHTML = def.units.map((u) => `<option value="${u}">${u}</option>`).join('');
-    fromSel.dataset.cat = cat;
+function switchUnitCat() {
+  const cat = $('uCat').value;
+  const f = $('uFields'); if (!f) return;
+  if (cat === 'molar') {
+    f.innerHTML = `<div class="field"><label>数值</label><input id="uVal" type="number" value="1"></div>
+      <div class="field"><label>分子量（g/mol）</label><input id="uMw" type="number" value="180.16" placeholder="如葡萄糖 180.16"></div>
+      <div class="field"><label>方向</label><select id="uDir"><option value="g2mol">克 g → 摩尔 mol</option><option value="mol2g">摩尔 mol → 克 g</option></select></div>`;
+  } else if (cat === 'conc') {
+    f.innerHTML = `<div class="field"><label>数值</label><input id="uVal" type="number" value="1"></div>
+      <div class="field"><label>分子量（g/mol）</label><input id="uMw" type="number" value="180.16" placeholder="如葡萄糖 180.16"></div>
+      <div class="field"><label>方向</label><select id="uDir"><option value="g2m">g/L → mol/L (M)</option><option value="m2g">mol/L (M) → g/L</option></select></div>`;
+  } else {
+    const def = UNIT_DEFS[cat];
+    f.innerHTML = `<div class="field"><label>数值</label><input id="uVal" type="number" value="${cat === 'temp' ? 37 : 1}"></div>
+      <div class="field"><label>单位</label><select id="uFrom">${def.units.map((u) => `<option value="${u}">${def.label[u]}</option>`).join('')}</select></div>`;
   }
-  const from = $('uFrom').value || def.units[0];
-  if (isNaN(v)) { $('uOut').innerHTML = ''; return; }
-  const base = def.inv[from](v);
+  const o = $('uOut'); if (o) o.innerHTML = '';
+}
+function uFmt(n) { if (!isFinite(n)) return '—'; if (n !== 0 && (Math.abs(n) >= 1e6 || Math.abs(n) < 1e-4)) return n.toExponential(3); return n.toLocaleString(undefined, { maximumFractionDigits: 6 }); }
+function convUnit() {
+  const cat = $('uCat').value;
+  const v = parseFloat($('uVal').value);
+  if (isNaN(v)) { $('uOut').innerHTML = '<div class="help">请输入数值。</div>'; return; }
+  if (cat === 'molar' || cat === 'conc') {
+    const mw = parseFloat($('uMw').value);
+    const dir = $('uDir').value;
+    if (!mw || mw <= 0) { $('uOut').innerHTML = '<div class="help">请输入有效的分子量（g/mol）。</div>'; return; }
+    if (cat === 'molar') {
+      const mol = dir === 'g2mol' ? v / mw : v, g = dir === 'g2mol' ? v : v * mw;
+      $('uOut').innerHTML = `<div class="out"><div class="line"><span>摩尔量</span><b>${uFmt(mol)} mol</b></div><div class="line"><span>质量</span><b>${uFmt(g)} g</b></div><div class="line"><span>分子量</span><b>${mw} g/mol</b></div></div>`;
+    } else {
+      const molL = dir === 'g2m' ? v / mw : v, gL = dir === 'g2m' ? v : v * mw;
+      $('uOut').innerHTML = `<div class="out"><div class="line"><span>摩尔浓度</span><b>${uFmt(molL)} mol/L (M)</b></div><div class="line"><span>质量浓度</span><b>${uFmt(gL)} g/L</b></div><div class="line"><span>分子量</span><b>${mw} g/mol</b></div></div>`;
+    }
+    return;
+  }
+  const def = UNIT_DEFS[cat];
+  const from = $('uFrom').value;
+  const base = def.toBase[from](v);
   let h = '<div class="out">';
-  def.units.forEach((u) => { h += `<div class="line"><span>${u}</span><b>${def[u](base).toLocaleString(undefined, { maximumFractionDigits: 6 })}</b></div>`; });
+  def.units.forEach((u) => { h += `<div class="line"><span>${def.label[u]}</span><b>${uFmt(def.fromBase[u](base))}</b></div>`; });
   h += '</div>';
   $('uOut').innerHTML = h;
 }
@@ -3053,17 +3098,14 @@ let weeklyText = '';
 let weeklyRaw = '';
 function openWeeklyReport() {
   let html = `<div class="grabber"></div><h2>周报 / 组会素材</h2>
-    <p class="hint">根据实验记录一键汇总，直接复制用于周报或组会汇报。</p>
-    <div class="field"><label>统计范围</label><select id="wrRange">
+    <p class="hint">选择时间范围即自动汇总；可点「AI 优化」润色后复制。</p>
+    <div class="field"><label>统计范围</label><select id="wrRange" onchange="genWeekly()">
       <option value="week">本周（周一至今）</option>
       <option value="7">最近 7 天</option>
       <option value="30">最近 30 天</option>
       <option value="all">全部</option>
     </select></div>
-    <div class="btn-row" style="margin-top:6px">
-      <button class="btn secondary" onclick="genWeekly()">生成</button>
-      <button class="btn ghost" id="aiOptWeekly" onclick="aiOptimizeWeekly()">🤖 AI 优化</button>
-    </div>
+    <button class="btn ghost" id="aiOptWeekly" style="margin-top:6px" onclick="aiOptimizeWeekly()">🤖 AI 优化</button>
     <div id="wrOut"></div>`;
   openSheet(html);
   genWeekly();
@@ -3417,6 +3459,12 @@ function setNotify(on) {
   const s = getSettings(); s.notifyExp = on; setSettings(s);
   toast(on ? '已开启临期提醒' : '已关闭临期提醒');
   if (on) checkExpNotify();
+  renderMore(); // 立即刷新更多页标签
+}
+function swNotify(title, body) {
+  return navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, {
+    body: body || '', icon: './icon.svg', tag: 'bench-exp', requireInteraction: false, renotify: true
+  }));
 }
 function checkExpNotify() {
   const s = getSettings();
@@ -3429,18 +3477,17 @@ function checkExpNotify() {
   if (need.length) {
     const expired = need.filter((r) => daysUntil(r.expiry) < 0).length;
     const title = expired ? `⚠️ ${expired} 项已过期、${need.length - expired} 项临期` : `⏰ ${need.length} 项试剂临期`;
-    try {
-      navigator.serviceWorker.ready.then((reg) => reg.showNotification(title, {
-        body: need.slice(0, 4).map((r) => r.name).join('、') + (need.length > 4 ? ' 等' : ''),
-        icon: './icon.svg', tag: 'bench-exp', requireInteraction: false
-      })).catch(() => new Notification(title, { icon: './icon.svg' }));
-    } catch (e) { try { new Notification(title, { icon: './icon.svg' }); } catch (_) {} }
+    const body = need.slice(0, 4).map((r) => r.name).join('、') + (need.length > 4 ? ' 等' : '');
+    swNotify(title, body).catch((e) => console.warn('[notify] showNotification failed', e));
   }
   const ns = getSettings(); ns.lastNotifyDate = today; setSettings(ns);
 }
 function testExpNotify() {
-  if (!notifySupported() || Notification.permission !== 'granted') { toast('请先开启临期提醒并授权'); return; }
-  try { new Notification('✅ 实验台通知测试', { body: '临期提醒工作正常', icon: './icon.svg' }); } catch (e) { toast('通知发送失败'); }
+  if (!notifySupported()) { toast('当前浏览器不支持通知'); return; }
+  if (Notification.permission !== 'granted') { toast('请先开启「临期提醒」并授权通知'); return; }
+  swNotify('✅ 实验台通知测试', '临期提醒工作正常')
+    .then(() => toast('已发送测试通知，请查看通知栏'))
+    .catch((e) => { console.warn(e); toast('通知发送失败：' + (e.message || e)); });
 }
 function saveExpDays() {
   const el = $('setExpDays'); if (!el) return;
@@ -3478,17 +3525,17 @@ function showOnboarding(fromSettings) {
 function finishOnboarding() { try { localStorage.setItem(ONBOARDED, '1'); } catch (e) {} closeModal(); }
 
 /* ---------------- 复制文本 ---------------- */
-function copyText(text) {
+function copyText(text, msg) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => toast('已复制')).catch(() => fallbackCopy(text));
-  } else fallbackCopy(text);
+    navigator.clipboard.writeText(text).then(() => toast(msg || '已复制')).catch(() => fallbackCopy(text, msg));
+  } else fallbackCopy(text, msg);
 }
-function fallbackCopy(text) {
+function fallbackCopy(text, msg) {
   try {
     const ta = document.createElement('textarea'); ta.value = text;
     ta.style.position = 'fixed'; ta.style.opacity = '0'; ta.style.top = '0';
     document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    toast('已复制');
+    toast(msg || '已复制');
   } catch (e) { toast('复制失败，请手动选择'); }
 }
 

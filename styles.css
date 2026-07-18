@@ -50,36 +50,15 @@ html,body{margin:0;padding:0}
 html.overlay-open{overflow:hidden}
 html.overlay-open body{overflow:hidden}
 
-/* 环境光晕：让玻璃有内容可折射 */
+/* 静态蓝白渐变背景（原方案） */
 body{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Helvetica,Arial,sans-serif;
   color:var(--ink);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5;font-optical-sizing:auto;
   overscroll-behavior-y:none;
   min-height:100vh;
-  background:
-    radial-gradient(60vw 60vw at 12% 6%, rgba(120,170,255,.32), transparent 60%),
-    radial-gradient(55vw 55vw at 90% 10%, rgba(255,150,205,.30), transparent 60%),
-    radial-gradient(62vw 62vw at 78% 92%, rgba(110,230,180,.26), transparent 60%),
-    radial-gradient(50vw 50vw at 22% 96%, rgba(190,160,255,.24), transparent 60%),
-    radial-gradient(48vw 48vw at 48% 38%, rgba(94,87,254,.10), transparent 60%),
-    radial-gradient(44vw 44vw at 72% 58%, rgba(52,200,255,.10), transparent 60%),
-    linear-gradient(180deg,#eef2fb 0%, #e9eafa 100%);
+  background:linear-gradient(180deg,#f5f7ff 0%, #e8edf8 100%);
   background-attachment:fixed;
 }
-/* 漂浮光球，营造液态流动感 */
-body::before,body::after{
-  content:"";position:fixed;border-radius:50%;filter:blur(44px);z-index:-1;
-  opacity:.5;pointer-events:none;will-change:transform;transform:translateZ(0);
-}
-body::before{width:62vw;height:62vw;left:-12vw;top:-12vh;
-  background:radial-gradient(circle,rgba(110,165,255,.55),transparent 70%);
-  animation:float1 20s ease-in-out infinite}
-body::after{width:56vw;height:56vw;right:-12vw;bottom:-14vh;
-  background:radial-gradient(circle,rgba(255,150,200,.5),transparent 70%);
-  animation:float2 24s ease-in-out infinite}
-@keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(7vw,6vh)}}
-@keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-6vw,-7vh)}}
-
 .app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;background:transparent}
 .hide{display:none}
 

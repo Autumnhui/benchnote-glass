@@ -36,9 +36,9 @@ function openUnitManager() {
     <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">
       ${getAllUnits().map((u) => `<span class="unit-tag${DEFAULT_UNITS.includes(u)?'':' custom'}" data-unit="${esc(u)}" onclick="${DEFAULT_UNITS.includes(u)?'':'removeUnit(this.dataset.unit)'}">${esc(u)}${DEFAULT_UNITS.includes(u)?'':' ✕'}</span>`).join('')}
     </div>
-    <div style="display:flex;gap:8px"><input id="newUnitInput" placeholder="输入新单位" style="flex:1"><button class="btn" onclick="addUnit()">添加</button></div>
-    <div class="btn-row" style="margin-top:12px"><button class="btn secondary" onclick="closeSheet()">完成</button></div>`;
-  openSheet(html);
+    <div style="display:flex;gap:8px"><input id="newUnitInput" placeholder="输入新单位" style="flex:1;min-width:160px"><button style="width:auto;padding:6px 14px;font-size:14px" class="btn" onclick="addUnit()">添加</button></div>
+    <div class="btn-row" style="margin-top:12px"><button class="btn secondary" onclick="closeModal()">完成</button></div>`;
+  openModal(html);
 }
 function addUnit() {
   const v = $('newUnitInput').value.trim();
@@ -1106,10 +1106,12 @@ function renderReagents() {
       html += `<div class="${cls}" onclick="${click}">
         ${chk}
         <div class="card-body">
-        <div class="row1"><h3>${esc(r.name)}</h3></div>
-        <div class="meta">${esc(r.supplier || r.brand || '—')}${lotStrs.length ? ' · 货号 ' + esc(lotStrs.join('/')) : ''}</div>
-        <div class="meta">库存 ${totalQty}${lots[0].unit}（共 ${batchCount} 批） · ${esc(lots[0].location || '')}</div>
-        <div class="meta" style="margin-top:2px">${esc(batchSummary)}</div>
+        <div class="r-row r-name">${esc(r.name)}</div>
+        <div class="r-row"><span class="r-label">品牌</span><span class="r-val">${esc(r.supplier || r.brand || '—')}</span></div>
+        <div class="r-row"><span class="r-label">货号</span><span class="r-val">${lotStrs.length ? esc(lotStrs.join('/')) : '—'}</span></div>
+        <div class="r-row"><span class="r-label">库存</span><span class="r-val">${totalQty}${lots[0].unit}（${batchCount} 批）</span></div>
+        <div class="r-row"><span class="r-label">位置</span><span class="r-val">${esc(lots[0].location || '—')}</span></div>
+        <div class="r-row"><span class="r-label">最短效期</span><span class="r-val">${esc(minExpiry || '—')}</span></div>
         </div>
         <div class="card-actions">${tagHtml ? tagHtml : ''}${inquireBtn || ''}</div>
       </div>`;
@@ -1130,17 +1132,17 @@ function getVisibleReags() {
       const lotsStr = (r.lots||[]).map((l) => (l.lot||'')+'/'+(l.batch||'')+'/'+(l.location||'')).join(' ');
       if (!(r.name + ' ' + (r.lot||'') + ' ' + (r.location||'') + ' ' + lotsStr).toLowerCase().includes(reagSearch.toLowerCase())) return false;
     }
-    if (reagFilter === 'all') return true;
-    const st = reagStatus(r);
-    if (reagFilter === 'expired') return reagLotsExpired(r);
-    if (reagFilter === 'expiring') return st.text.includes('临期');
-    if (reagFilter === 'low') return st.text === '需补货';
-    // 批次状态筛选
+    // 批次状态筛选（先于 reagFilter，避免 reagFilter==='all' 直接 return true 跳过）
     if (reagLotFilter !== 'all') {
       const statusMap = { 'unused': '未使用', 'inuse': '在用', 'usedup': '用完', 'discard': '废弃' };
       const target = statusMap[reagLotFilter];
       if (!(r.lots||[]).some((l) => (l.status||'未使用') === target)) return false;
     }
+    if (reagFilter === 'all') return true;
+    const st = reagStatus(r);
+    if (reagFilter === 'expired') return reagLotsExpired(r);
+    if (reagFilter === 'expiring') return st.text.includes('临期');
+    if (reagFilter === 'low') return st.text === '需补货';
     return true;
   });
   list.sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || (idx.get(a.id) - idx.get(b.id)));
@@ -1569,8 +1571,13 @@ function renderMore() {
   const st = getSettings();
   const xfOk = iflytekReady();
   const agnesOk = agnesReady();
-  let html = '<div class="section-title">API 与密钥</div>';
-  html += '<p class="hint" style="margin:0 0 8px">建议自行配置；默认配置可能失效，填入下方自有凭证即可提速。</p>';
+  let html = '';
+  // 微信内置浏览器提醒（放在 API 与密钥 模块上方）
+  if (isWeChat()) {
+    html += `<p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#e67e22;line-height:1.5">⚠️ 当前为微信内置浏览器，功能和体验受限，建议 <span style="color:var(--blue);cursor:pointer;text-decoration:underline" onclick="copyWeChatLink()">用浏览器打开</span>。</p>`;
+  }
+  html += '<div class="section-title">API 与密钥</div>';
+  html += '<p class="hint" style="margin:4px 6px 10px;font-size:12px;color:var(--muted)">建议自行配置；默认配置可能失效。</p>';
   const apiRows = [
     { id: 'xf', title: '语音听写', ok: xfOk, step: '获取讯飞凭证',
       stepD: '① 打开 xfyun.cn 注册登录；② 控制台创建应用，服务勾选「语音听写 iat」；③ 复制下方三项并粘贴保存。',
@@ -1606,19 +1613,18 @@ function renderMore() {
   });
   html += '<div class="section-title">提醒与偏好</div>';
   const notifyOn = st.notifyExp && notifySupported() && (typeof Notification !== 'undefined' && Notification.permission === 'granted');
-  html += `<div class="card">
+  // 临期阈值折叠区（同 AI 整理 的折叠逻辑）
+  html += `<div class="api-row" onclick="toggleApi('notify')">
+    <div class="api-row-main"><span class="api-row-title">临期阈值</span><span class="tag ok">${st.expDays || 30} 天</span></div>
+    <span class="api-caret" id="caret-notify">⌄</span>
+  </div>`;
+  html += `<div class="api-detail" id="api-notify" style="display:none">
     <div class="field"><label>临期阈值（天）</label>
       <input id="setExpDays" type="number" min="1" max="365" value="${st.expDays || 30}">
       <div class="help">效期在此天数内的试剂标记为「临期」并计入提醒（默认 30）。</div>
     </div>
     <button class="btn" onclick="saveExpDays()">保存阈值</button>
   </div>`;
-  html += `<div class="list-row" onclick="${notifyOn ? 'setNotify(false)' : 'enableExpNotify()'}">
-    <div class="lr-ico">🔔</div>
-    <div class="lr-main"><div class="lr-title">临期提醒</div><div class="lr-sub">${notifySupported() ? (notifyOn ? '已开启，每天检查一次临期/过期' : '开启后每天推送临期与过期通知') : '当前浏览器不支持通知'}</div></div>
-    <span class="tag ${notifyOn ? 'ok' : 'muted'}">${notifyOn ? '已开启' : '未开启'}</span>
-  </div>`;
-  html += `<button class="btn ghost" style="margin-top:8px" onclick="testExpNotify()">🔔 测试通知</button>`;
   html += '<div class="section-title">数据备份</div>';
   html += `<div class="btn-row">
       <button class="btn" onclick="exportData()">📤 导出</button>
@@ -2016,9 +2022,12 @@ function openReagSheet(id) {
     <div class="field"><label>名称</label><div style="display:flex;flex:1;gap:4px"><input id="rName" value="${v('name')}" placeholder="如：PBS 缓冲液" style="flex:1"><span class="ai-scan-btn" onclick="scanReagPhoto()">📷 拍照识别</span></div></div>
     <div class="field-row">
       <div class="field"><label>品牌</label><input id="rSup" value="${v('supplier')}" placeholder="如：Thermo / Sigma"></div>
-      <div class="field"><label>安全库存（低于即提醒补货）</label><input id="rMin" type="number" value="${v('min') || 0}" placeholder="如：1"></div>
+      <div class="field"><label>货号</label><input id="rLot" value="${v('lot')}" placeholder="如：P1300"></div>
     </div>
-    <div class="field"><label>品牌偏好（询价时使用）</label><input id="rBrand" value="${v('brand')}" placeholder="如：迈博瑞 / Lonza / Solarbio（选填）"></div>
+    <div class="field-row">
+      <div class="field"><label>安全库存（低于即提醒补货）</label><input id="rMin" type="number" value="${v('min') || 0}" placeholder="如：1"></div>
+      <div class="field"><label>品牌偏好（询价时使用）</label><input id="rBrand" value="${v('brand')}" placeholder="如：迈博瑞 / Lonza（选填）"></div>
+    </div>
     <div class="section-title" style="font-size:13px;margin:12px 0 4px">批次列表</div>
     <div class="lot-sheet-list" id="lotSheetList">`;
 
@@ -2028,23 +2037,22 @@ function openReagSheet(id) {
         <div class="lot-sheet-field"><label>货号</label><input data-lot-idx="${i}" class="lot-input" data-field="lot" value="${esc(l.lot||'')}"></div>
         <div class="lot-sheet-field"><label>批号</label><input data-lot-idx="${i}" class="lot-input" data-field="batch" value="${esc(l.batch||'')}"></div>
         <div class="lot-sheet-field"><label>数量</label><input data-lot-idx="${i}" class="lot-input" data-field="qty" type="number" value="${Number(l.qty)||0}"></div>
-        <div class="lot-sheet-field"><label>单位</label><input data-lot-idx="${i}" class="lot-input" data-field="unit" value="${esc(l.unit||'瓶')}" list="unitList"></div>
+        <div class="lot-sheet-field"><div class="lot-label-row"><label>单位</label><span class="more" onclick="openUnitManager()">管理单位</span></div><input data-lot-idx="${i}" class="lot-input" data-field="unit" value="${esc(l.unit||'瓶')}" list="unitList"></div>
         <div class="lot-sheet-field"><label>位置</label><input data-lot-idx="${i}" class="lot-input" data-field="location" value="${esc(l.location||'')}"></div>
         <div class="lot-sheet-field"><label>效期</label><input data-lot-idx="${i}" class="lot-input" data-field="expiry" type="date" value="${esc(l.expiry||'')}"></div>
-        <div class="lot-sheet-field"><label>开瓶</label><input data-lot-idx="${i}" class="lot-input" data-field="opened" type="date" value="${esc(l.opened||'')}"></div>
+        <div class="lot-sheet-field"><label>开瓶日期</label><input data-lot-idx="${i}" class="lot-input" data-field="opened" type="date" value="${esc(l.opened||'')}"></div>
         <div class="lot-sheet-field"><label>状态</label>
           <select data-lot-idx="${i}" class="lot-input" data-field="status">
             ${['未使用','在用','用完','废弃'].map((s) => `<option value="${s}"${s===(l.status||'未使用')?' selected':''}>${s}</option>`).join('')}
           </select>
         </div>
       </div>
-      ${lots.length > 1 ? `<button class="lot-del" onclick="removeLotRow(${i})" title="删除此批次">✕</button>` : ''}
+      ${lots.length > 1 ? `<button class="lot-del" onclick="removeLotRow(${i})" title="删除此批次">X 删除上面这个批次</button>` : ''}
     </div>`;
   });
 
   html += `</div>
-    <button class="btn ghost" style="width:100%" onclick="addLotRow()">+ 添加批次</button>
-    <div style="margin-top:6px;font-size:12px;color:var(--muted);text-align:right"><span style="cursor:pointer" onclick="openUnitManager()">管理单位</span></div>`;
+    <button class="btn ghost" style="width:100%" onclick="addLotRow()">+ 添加批次</button>`;
   html += unitListHtml();
 
   // 只在新建模式存 lot-ids，编辑模式从原数据读
@@ -2193,6 +2201,7 @@ function saveReag() {
   const name = $('rName').value.trim();
   if (!name) { toast('请填写名称'); return; }
   const supplier = $('rSup').value.trim();
+  const lot = $('rLot') ? $('rLot').value.trim() : '';
   const brand = $('rBrand') ? $('rBrand').value.trim() : '';
   const min = $('rMin').value || 0;
   
@@ -2220,10 +2229,10 @@ function saveReag() {
       const old = oldLots[idx] || {};
       return { id: old.id || uid('l'), lot: l.lot || '', batch: l.batch || '', qty: Number(l.qty) || 0, unit: l.unit || '瓶', location: l.location || '', expiry: l.expiry || '', opened: l.opened || '', status: l.status || '正常' };
     });
-    reags[i] = { ...reags[i], name, supplier, brand, min, lots: updatedLots };
+    reags[i] = { ...reags[i], name, supplier, lot, brand, min, lots: updatedLots };
     r = reags[i];
   } else {
-    r = { id: uid('r'), name, supplier, brand, min, lots: lots.map((l) => ({ id: uid('l'), lot: l.lot || '', batch: l.batch || '', qty: Number(l.qty) || 0, unit: l.unit || '瓶', location: l.location || '', expiry: l.expiry || '', opened: l.opened || '', status: l.status || '正常' })) };
+    r = { id: uid('r'), name, supplier, lot, brand, min, lots: lots.map((l) => ({ id: uid('l'), lot: l.lot || '', batch: l.batch || '', qty: Number(l.qty) || 0, unit: l.unit || '瓶', location: l.location || '', expiry: l.expiry || '', opened: l.opened || '', status: l.status || '正常' })) };
     reags.push(r);
   }
   save(STORE.reag, reags);
@@ -2250,6 +2259,30 @@ function removeLotRow(idx) {
       let delBtn = row.querySelector('.lot-del');
     }
   });
+}
+function addLotRow() {
+  const list = $('lotSheetList');
+  if (!list) return;
+  const rows = list.querySelectorAll('.lot-sheet-row');
+  const idx = rows.length;
+  const row = document.createElement('div');
+  row.className = 'lot-sheet-row';
+  row.innerHTML = `<div class="lot-sheet-fields">
+    <div class="lot-sheet-field"><label>货号</label><input data-lot-idx="${idx}" class="lot-input" data-field="lot"></div>
+    <div class="lot-sheet-field"><label>批号</label><input data-lot-idx="${idx}" class="lot-input" data-field="batch"></div>
+    <div class="lot-sheet-field"><label>数量</label><input data-lot-idx="${idx}" class="lot-input" data-field="qty" type="number" value="0"></div>
+    <div class="lot-sheet-field"><div class="lot-label-row"><label>单位</label><span class="more" onclick="openUnitManager()">管理单位</span></div><input data-lot-idx="${idx}" class="lot-input" data-field="unit" value="瓶" list="unitList"></div>
+    <div class="lot-sheet-field"><label>位置</label><input data-lot-idx="${idx}" class="lot-input" data-field="location"></div>
+    <div class="lot-sheet-field"><label>有效期</label><input data-lot-idx="${idx}" class="lot-input" data-field="expiry" type="date"></div>
+    <div class="lot-sheet-field"><label>开瓶日期</label><input data-lot-idx="${idx}" class="lot-input" data-field="opened" type="date"></div>
+    <div class="lot-sheet-field"><label>状态</label>
+      <select data-lot-idx="${idx}" class="lot-input" data-field="status">
+        <option>未使用</option><option>在用</option><option>用完</option><option>废弃</option>
+      </select>
+    </div>
+  </div>
+  <button class="lot-del" onclick="removeLotRow(${idx})" title="删除此批次">X 删除上面这个批次</button>`;
+  list.appendChild(row);
 }
 function deleteReag() {
   if (!editingReagId) return;
@@ -3393,7 +3426,7 @@ function useTemplate(id) {
   html += `<div class="field"><label>标题</label><input id="tfTitle" value="${esc(t.title)}"></div>`;
   html += `<div class="field"><label>记录人</label><input id="tfOp" value="实验员"></div>`;
   if (/\d{1,2}:\d{2}/.test(t.raw)) html += `<div class="field"><label>起始时间（可选；把模板里的 HH:MM 时间点整体平移到你开始做的时刻）</label><input id="tfStart" type="time"></div>`;
-  html += `<div id="tfPreview" class="step" style="margin-top:6px"></div>`;
+  html += `<div id="tfPreview" class="step" style="margin-top:6px;max-height:320px;overflow-y:auto"></div>`;
   if (t.consumables && t.consumables.length) {
     html += `<div class="tpl-consumables"><div class="tpl-ctitle">本实验推荐耗材 <span class="tpl-csub">（可一键询价）</span></div>`;
     t.consumables.forEach((c) => {
@@ -4181,7 +4214,24 @@ function showOnboarding(fromSettings) {
   </div>`;
   openModal(html);
 }
-function finishOnboarding() { save(ONBOARDED, true); closeModal(); }
+function finishOnboarding() { save(ONBOARDED, true); closeModal(); showWeChatHint(); }
+function isWeChat() { return /micromessenger/i.test(navigator.userAgent); }
+function showWeChatHint() {
+  if (!isWeChat()) return;
+  openModal(`<div style="text-align:center;padding:24px 16px">
+    <p style="font-size:18px;font-weight:600;margin-bottom:4px">⚠️ 强烈建议在手机浏览器打开</p>
+    <p class="hint" style="font-size:13px;margin-bottom:18px">微信内置浏览器部分功能受限（无法安装/推送通知），建议点击右上角"…" → 用浏览器打开。</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">关闭</button>
+      <button class="btn" style="flex:1" onclick="copyWeChatLink()">🔗 复制链接</button>
+    </div>
+  </div>`);
+}
+function copyWeChatLink() {
+  copyText(window.location.href, '链接已复制，请到浏览器粘贴');
+  const modal = document.querySelector('.sheet, .modal-overlay');
+  if (modal) closeModal();
+}
 
 /* ---------------- 复制文本 ---------------- */
 function copyText(text, msg) {

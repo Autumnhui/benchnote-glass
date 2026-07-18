@@ -45,12 +45,12 @@
   --safe-b:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;overscroll-behavior-y:none}
 /* 弹层（sheet/modal）打开时锁定背景滚动 */
 html.overlay-open{overflow:hidden}
 html.overlay-open body{overflow:hidden}
 
-/* 静态蓝白渐变背景（原方案） */
+/* 静态蓝白渐变 + 静态模糊光球 */
 body{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Helvetica,Arial,sans-serif;
   color:var(--ink);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5;font-optical-sizing:auto;
@@ -58,6 +58,17 @@ body{
   min-height:100vh;
   background:linear-gradient(180deg,#f5f7ff 0%, #e8edf8 100%);
   background-attachment:fixed;
+}
+/* 静态模糊光球（无动画，移动端性能安全） */
+body::before{
+  content:"";position:fixed;inset:10% 5% auto auto;width:50vw;height:50vw;border-radius:50%;
+  background:radial-gradient(circle, rgba(94,87,254,.18), transparent 70%);
+  filter:blur(44px);z-index:-1;pointer-events:none;
+}
+body::after{
+  content:"";position:fixed;inset:auto 5% 10% 5%;width:50vw;height:50vw;border-radius:50%;
+  background:radial-gradient(circle, rgba(52,200,255,.14), transparent 70%);
+  filter:blur(44px);z-index:-1;pointer-events:none;
 }
 .app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;background:transparent}
 .hide{display:none}
@@ -148,9 +159,11 @@ body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 /* 试剂卡片：固定两列网格，每行两个卡片 */
 .reag-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
 .reag-grid .card{margin-bottom:0;padding:12px;display:flex;flex-direction:row;align-items:stretch;gap:8px;position:relative}
-.reag-grid .card .card-body{flex:1;min-width:0;display:flex;flex-direction:column}
-.reag-grid .card .row1 h3{padding-right:64px}
-.reag-grid .card .meta{font-size:11px;color:var(--muted);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reag-grid .card .card-body{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.reag-grid .card .r-row{display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.5;word-break:break-word}
+.reag-grid .card .r-row.r-name{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:4px;padding-right:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reag-grid .card .r-label{color:var(--muted);flex-shrink:0;min-width:32px}
+.reag-grid .card .r-val{color:var(--ink);flex:1;min-width:0;overflow-wrap:break-word;word-break:break-word}
 .reag-grid .card .card-actions{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:auto}
 .reag-grid .card .card-actions .tag{flex-shrink:0}
 .reag-grid .card .inquire-mini{font-size:11px;padding:3px 8px;white-space:nowrap}
@@ -279,6 +292,8 @@ textarea{min-height:96px;resize:vertical}
 .btn:active{transform:scale(.985);transition-duration:0s}
 .btn.secondary{background:rgba(255,255,255,.6);color:var(--ink);box-shadow:var(--glass-shadow), 0 1px 0 rgba(255,255,255,.6) inset;border:1px solid rgba(255,255,255,.6)}
 .btn.danger{background:var(--red-soft);color:var(--red);box-shadow:none}
+.btn.small{width:auto;padding:6px 12px;font-size:14px;border-radius:10px}
+.unit-add-btn{display:inline-block;width:auto;flex:0 0 auto;padding:4px 10px;font-size:13px;font-weight:600;color:#fff;background:var(--accent);border-radius:8px;border:0;cursor:pointer;box-shadow:0 4px 10px rgba(94,87,254,.3)}
 .btn.ghost{background:rgba(255,255,255,.5);color:var(--blue);border:0;box-shadow:0 1px 0 rgba(255,255,255,.55) inset}
 /* 渐变蓝色按钮（AI 优化完成态） */
 .btn.gradient{background:linear-gradient(135deg,#5e57fe,#34c8ff);color:#fff;border:0;font-weight:600;box-shadow:0 4px 12px rgba(94,87,254,.28), 0 1px 0 rgba(255,255,255,.35) inset}
@@ -646,27 +661,59 @@ select.sel:focus{border-color:var(--accent-2)}
 .lot-sheet-list { margin-bottom: 4px; }
 .lot-sheet-row {
   display: flex;
-  gap: 6px;
-  align-items: flex-start;
-  padding: 8px 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 .lot-sheet-row:last-child { border-bottom: none; }
+.lot-del {
+  align-self: stretch; margin-top: 4px; width: 100%;
+  padding: 8px 12px; border-radius: 10px; border: 0; cursor: pointer;
+  background: var(--red-soft); color: var(--red);
+  font-size: 13px; font-weight: 600; text-align: center;
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+}
+.lot-del:active { transform: scale(.98); transition-duration: 0s; }
 .lot-sheet-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 8px;
-  flex: 1;
+  gap: 12px;
 }
-.lot-sheet-field { display: flex; flex-direction: column; gap: 1px; }
-.lot-sheet-field label { font-size: 10px; color: var(--muted); }
+.lot-sheet-field { display: flex; flex-direction: column; }
+.lot-sheet-field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+.lot-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.lot-label-row label { flex: 1; font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.lot-label-row .more { color: var(--blue); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+
+/* 基础输入框样式（货号 / 批号 / 位置：普通文本框） */
 .lot-sheet-field input,
 .lot-sheet-field select {
-  font-size: 13px; padding: 5px 8px;
-  border: 1px solid var(--line); border-radius: 8px;
-  background: var(--glass); outline: none;
+  width: 100%; border: 1px solid rgba(255,255,255,.7); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--ink); outline: none;
+  background: rgba(255,255,255,.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
 }
-.lot-sheet-field select { appearance: auto; }
+.lot-sheet-field input:focus,
+.lot-sheet-field select:focus {
+  border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(94,87,254,.20), 0 0 0 1px rgba(52,200,255,.32), 0 1px 0 rgba(255,255,255,.6) inset;
+}
+
+/* 数量 / 安全库存：保留浏览器原生上下调整箭头 */
+.lot-sheet-field input[type="number"] {
+  appearance: auto; -webkit-appearance: auto;
+}
+
+/* 状态 / 单位 / 效期 / 开瓶日期：加自定义下拉 chevron */
+.lot-sheet-field select,
+.lot-sheet-field input[list],
+.lot-sheet-field input[type="date"] {
+  appearance: none; -webkit-appearance: none;
+  padding: 10px 36px 10px 12px;
+  background: linear-gradient(rgba(255,255,255,.55) 0, rgba(255,255,255,.55) calc(100% - 36px)),
+              url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%236b6f76' d='M5 6L0 0h10z'/></svg>") no-repeat right 14px center;
+}
+.lot-sheet-field .more { color: var(--blue); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 
 /* 单位标签管理 */
 .unit-tag {

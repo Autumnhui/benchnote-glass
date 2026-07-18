@@ -4480,7 +4480,15 @@ document.addEventListener('click', function(e) {
 /* ---------------- 事件绑定 ---------------- */
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchView(t.dataset.view)));
 $('fab').addEventListener('click', () => {
-  if (currentView === 'experiments') openExpSheet(null);
+  if (currentView === 'experiments') {
+    openModal(`<div style="padding:8px 0;text-align:center">
+      <h2 style="margin:8px 0 16px;font-size:18px">新建实验记录</h2>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn" style="flex:1;padding:16px 12px;font-size:16px;flex-direction:column;gap:4px;line-height:1.4" onclick="closeModal();openTemplates()"><span style="font-size:24px">📋</span><span>从模板新建</span></button>
+        <button class="btn" style="flex:1;padding:16px 12px;font-size:16px;flex-direction:column;gap:4px;line-height:1.4" onclick="closeModal();openExpSheet(null)"><span style="font-size:24px">✏️</span><span>常规新建</span></button>
+      </div>
+    </div>`);
+  }
   else if (currentView === 'reagents') { if (reagSeg === 'freezer') openSampleSheet(null); else openReagSheet(null); }
 });
 $('sheetBackdrop').addEventListener('click', closeSheet);

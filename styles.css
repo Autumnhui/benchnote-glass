@@ -146,7 +146,7 @@ body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 
 /* cards */
 .card{background:var(--glass);backdrop-filter:var(--glass-blur) var(--lg);-webkit-backdrop-filter:var(--glass-blur);
-  border-radius:var(--radius);box-shadow:var(--glass-shadow);margin-bottom:12px;padding:16px;position:relative}
+  border-radius:var(--radius);margin-bottom:12px;padding:16px;position:relative}
 .card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--edge);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .card.tap{cursor:pointer;transition:transform .26s cubic-bezier(.32,.72,0,1)}
@@ -157,11 +157,11 @@ body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 .card h3{margin:0;font-size:16px;font-weight:600}
 .card .meta{font-size:12px;color:var(--muted);margin-top:4px}
 /* 试剂卡片：固定两列网格，每行两个卡片 */
-.reag-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
-.reag-grid .card{margin-bottom:0;padding:12px;display:flex;flex-direction:row;align-items:stretch;gap:8px;position:relative}
+.reag-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;max-width:100%;overflow:hidden}
+.reag-grid .card{margin-bottom:0;padding:12px;display:flex;flex-direction:row;align-items:stretch;gap:8px;position:relative;min-height:140px}
 .reag-grid .card .card-body{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
 .reag-grid .card .r-row{display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.5;word-break:break-word}
-.reag-grid .card .r-row.r-name{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:4px;padding-right:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reag-grid .card .r-row.r-name{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:4px;word-break:break-word;overflow-wrap:break-word;padding-right:56px}
 .reag-grid .card .r-label{color:var(--muted);flex-shrink:0;min-width:32px}
 .reag-grid .card .r-val{color:var(--ink);flex:1;min-width:0;overflow-wrap:break-word;word-break:break-word}
 .reag-grid .card .card-actions{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:auto}
@@ -246,7 +246,7 @@ body.fab-on .content{padding-bottom:calc(176px + var(--safe-b))}
 .btn.primary{background:var(--accent-2);color:#fff;box-shadow:0 8px 18px rgba(94,87,254,.32)}
 
 /* sheet */
-.sheet-backdrop,.modal-backdrop{position:fixed;inset:0;background:rgba(20,25,45,.32);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s ease}
+.sheet-backdrop,.modal-backdrop{position:fixed;inset:0;background:rgba(20,25,45,.32);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s ease, backdrop-filter .25s ease;cursor:pointer}
 .sheet-backdrop.show,.modal-backdrop.show{opacity:1;pointer-events:auto}
 .sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:100%;max-width:480px;z-index:41;
   background:var(--glass-strong);backdrop-filter:var(--glass-blur-strong) var(--lg);-webkit-backdrop-filter:var(--glass-blur-strong);
@@ -500,7 +500,8 @@ textarea{min-height:96px;resize:vertical}
 .card .chk{position:absolute;top:14px;right:12px;width:22px;height:22px;border-radius:50%;border:2px solid rgba(120,120,130,.55);box-sizing:border-box;background:rgba(255,255,255,.75);z-index:3;transition:background .15s,border-color .15s}
 .card.sel .chk{background:var(--blue);border-color:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
 .card.sel .chk:after{content:"\2713"}
-.card.sel{box-shadow:0 0 0 2px rgba(0,113,227,.55),var(--glass-shadow)}
+.card.sel{box-shadow:none}
+.card.sel::after{content:"";position:absolute;inset:0;border-radius:inherit;border:2px solid rgba(0,113,227,.55);pointer-events:none}
 .freezer .cell.hl{outline:2px solid var(--accent-2);outline-offset:0;box-shadow:0 0 0 3px rgba(94,87,254,.25),var(--glass-shadow);background:rgba(94,87,254,.16);color:var(--accent-2);font-weight:700}
 .freezer .cell.sel{background:var(--accent-2);color:#fff;font-weight:700;box-shadow:0 4px 12px rgba(94,87,254,.42)}
 
@@ -707,9 +708,11 @@ select.sel:focus{border-color:var(--accent-2)}
 /* 状态 / 单位 / 效期 / 开瓶日期：加自定义下拉 chevron */
 .lot-sheet-field select,
 .lot-sheet-field input[list],
-.lot-sheet-field input[type="date"] {
+.lot-sheet-field input[type="date"],
+.lot-sheet-field input[readonly] {
   appearance: none; -webkit-appearance: none;
   padding: 10px 36px 10px 12px;
+  cursor: pointer;
   background: linear-gradient(rgba(255,255,255,.55) 0, rgba(255,255,255,.55) calc(100% - 36px)),
               url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%236b6f76' d='M5 6L0 0h10z'/></svg>") no-repeat right 14px center;
 }
@@ -717,15 +720,37 @@ select.sel:focus{border-color:var(--accent-2)}
 
 /* 单位标签管理 */
 .unit-tag {
-  display: inline-block; padding: 4px 10px; border-radius: 8px;
-  background: var(--glass); border: 1px solid var(--line);
-  font-size: 13px; cursor: default;
+  display: inline-block; padding: 7px 14px; border-radius: 10px;
+  background: var(--glass); border: 1.5px solid var(--line);
+  font-size: 15px; font-weight: 500; cursor: default; user-select: none;
+  position: relative; box-shadow: 0 0 0 0.5px rgba(120,120,140,.12);
+}
+.unit-tag.pick-tag {
+  cursor: pointer; transition: transform .15s, box-shadow .15s;
+}
+.unit-tag.pick-tag:hover {
+  background: var(--blue-soft); border-color: var(--blue); color: var(--blue);
+  transform: scale(1.04);
+}
+.unit-tag.pick-tag:active {
+  transform: scale(.96);
 }
 .unit-tag.custom {
+  cursor: pointer; position: relative;
+}
+.unit-tag.custom.deleting {
   cursor: pointer;
 }
-.unit-tag.custom:hover {
+.unit-tag.custom.deleting:hover {
   background: rgba(255,59,48,.08); border-color: var(--red,#ff3b30);
+}
+.unit-del-x {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--red,#ff3b30); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  box-shadow: 0 2px 4px rgba(255,59,48,.35);
 }
 
 /* AI 拍照识别按钮 */

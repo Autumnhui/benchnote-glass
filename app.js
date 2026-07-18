@@ -4533,4 +4533,16 @@ window.addEventListener('resize', () => { _barBaseH = 0; _titleF = -1; updateTit
   if (bl) bl.classList.add('hide');
   setTimeout(() => { if (bl) bl.remove(); }, 400);
   setTimeout(checkExpNotify, 1500);
+  // 禁用 body 回弹（到顶/到底后拉长效果）
+  document.addEventListener('touchmove', (e) => {
+    const el = e.target;
+    // 在 sheet/modal 内不拦截——它们自己处理滚动
+    if (el.closest('.sheet-content') || el.closest('.modal-content')) return;
+    // 到顶或到底时阻止浏览器默认的橡皮筋回弹
+    const scrollY = window.scrollY;
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    if ((scrollY <= 0 && e.touches[0].clientY > 0) || (scrollY >= maxScroll && e.touches[0].clientY < 0)) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 })();

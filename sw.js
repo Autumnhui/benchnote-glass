@@ -1,4 +1,4 @@
-const CACHE = 'bench-v14';
+const CACHE = 'bench-v15';
 const ASSETS = [
   './',
   './index.html',

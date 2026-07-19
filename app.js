@@ -1627,8 +1627,8 @@ function renderMore() {
   if (isWeChat()) {
     html += `<p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#e67e22;line-height:1.5">⚠️ 当前为微信内置浏览器，功能和体验受限，建议 <span style="color:var(--blue);cursor:pointer;text-decoration:underline" onclick="copyWeChatLink()">用浏览器打开</span>。</p>`;
   }
-  html += '<div class="section-title">API 与密钥</div>';
-  html += '<p class="hint" style="margin:4px 6px 10px;font-size:12px;color:var(--muted)">建议自行配置；默认配置可能失效。</p>';
+  html += '<div class="section-title" style="margin:18px 6px 1px">AI 密钥配置</div>';
+  html += '<p class="hint" style="margin:2px 6px 6px;font-size:12px;color:var(--muted)">建议自行配置；默认配置可能失效。</p>';
   const apiRows = [
     { id: 'xf', title: '语音听写', ok: xfOk, step: '获取讯飞凭证',
       stepD: '① 打开 xfyun.cn 注册登录；② 控制台创建应用，服务勾选「语音听写 iat」；③ 复制下方三项并粘贴保存。',
@@ -1662,7 +1662,7 @@ function renderMore() {
       ${r.link ? '<a class="api-link" href="' + r.link.url + '" target="_blank" rel="noopener">' + r.link.label + ' ›</a>' : ''}
     </div>`;
   });
-  html += '<div class="section-title">提醒与偏好</div>';
+  html += '<div class="section-title">效期提醒阈值</div>';
   const notifyOn = st.notifyExp && notifySupported() && (typeof Notification !== 'undefined' && Notification.permission === 'granted');
   // 临期阈值折叠区（同 AI 整理 的折叠逻辑）
   html += `<div class="api-row" onclick="toggleApi('notify')">
@@ -1681,10 +1681,10 @@ function renderMore() {
       <button class="btn" onclick="exportData()">📤 导出</button>
       <button class="btn secondary" onclick="pickImport()">📥 导入</button>
     </div>
-    <input id="importFile" type="file" accept="application/json,.json" style="display:none" onchange="onImportFile(this)">
-    <div class="help">导出为 JSON 文件；换设备时导入即可恢复全部记录与配置。</div>`;
-  html += '<div class="section-title">帮助</div>';
-  html += `<div class="list-row" onclick="openOnboarding()"><div class="lr-ico">👋</div><div class="lr-main"><div class="lr-title">功能引导</div><div class="lr-sub">重新查看功能介绍与密钥配置提示</div></div><div class="lr-right">›</div></div>`;
+    <input id="importFile" type="file" accept="application/json,.json" style="display:none" onchange="onImportFile(this)">`;
+  html += '<div class="section-title">其他</div>';
+  html += `<div class="list-row" onclick="openOnboarding()"><div class="lr-ico">👋</div><div class="lr-main"><div class="lr-title">功能引导</div><div class="lr-sub">重新查看功能介绍</div></div><div class="lr-right">›</div></div>`;
+  html += `<div class="list-row" onclick="addToHomeScreen()"><div class="lr-ico" style="background:rgba(0,113,227,.12);color:var(--blue)">📱</div><div class="lr-main"><div class="lr-title">添加到桌面</div><div class="lr-sub">添加到桌面可以快速打开并离线可用</div></div><div class="lr-right" style="font-size:18px">›</div></div>`;
   html += `<div class="list-row" onclick="resetData()" style="color:var(--red)"><div class="lr-ico">🔄</div><div class="lr-main"><div class="lr-title">重置全部数据</div><div class="lr-sub">清除所有记录，恢复为初始默认状态</div></div><div class="lr-right">›</div></div>`;
   html += '<div class="section-title">供应合作</div>';
   // 两家公司卡片
@@ -4316,6 +4316,103 @@ function confirmReset() {
   setTimeout(() => { location.reload(); }, 300);
 }
 function isWeChat() { return /micromessenger/i.test(navigator.userAgent); }
+function isAndroid() { return /Android/i.test(navigator.userAgent); }
+function isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+/* ---------------- 添加到桌面 ---------------- */
+let _deferredPrompt = null;
+
+// 页面加载时监听 beforeinstallprompt（Android Chrome 触发）
+document.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredPrompt = e;
+});
+
+function addToHomeScreen() {
+  // 1. 微信 → 提示用浏览器打开
+  if (isWeChat()) {
+    openModal(`<div style="text-align:center;padding:24px 16px">
+      <div style="font-size:38px;margin-bottom:8px">📱</div>
+      <p style="font-size:18px;font-weight:600;margin-bottom:8px">无法添加到桌面</p>
+      <p class="hint" style="font-size:13px;margin-bottom:18px;line-height:1.6">微信内置浏览器无法添加到桌面，<br>建议点击右上角“<b>…</b>” → <b>用浏览器打开</b><br>或复制链接后到浏览器打开。</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn ghost" style="flex:1" onclick="closeModal()">关闭</button>
+        <button class="btn" style="flex:1" onclick="copyWeChatLink()">🔗 复制链接</button>
+      </div>
+    </div>`);
+    return;
+  }
+
+  // 2. Android Chrome → 尝试系统级安装
+  if (isAndroid()) {
+    if (_deferredPrompt) {
+      _deferredPrompt.prompt();
+      _deferredPrompt.userChoice.then((result) => {
+        if (result.outcome === 'accepted') {
+          toast('✅ 已添加到桌面');
+        } else {
+          renderInstallGuide('android');
+        }
+        _deferredPrompt = null;
+      });
+    } else {
+      renderInstallGuide('android');
+    }
+    return;
+  }
+
+  // 3. iOS Safari → 直接图文引导
+  if (isIOS()) {
+    renderInstallGuide('ios');
+    return;
+  }
+
+  // 4. 桌面浏览器 → 无操作提示
+  toast('请用手机浏览器打开本站点，即可添加到桌面');
+}
+
+function renderInstallGuide(platform) {
+  const steps = platform === 'android'
+    ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:var(--blue);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none">1</span>
+        <span>在浏览器底部点击 <b>分享</b> 或 <b>菜单</b> 按钮</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:var(--blue);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none">2</span>
+        <span>找到 <b>添加到桌面</b></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:var(--blue);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none">3</span>
+        <span>点击添加并 <b>确认</b> 即可完成</span>
+      </div>`
+    : `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:var(--blue);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none">1</span>
+        <span>点击底部或顶部分享 <span style="font-size:20px">⎙</span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="background:var(--blue);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none">2</span>
+        <span>找到「<b>添加到主屏幕</b>」</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:var(--blue);color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none">3</span>
+        <span>点击「<b>添加</b>」</span>
+      </div>`;
+
+  openModal(`<div style="padding:20px 16px">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:38px;margin-bottom:4px">📱</div>
+      <p style="font-size:18px;font-weight:600;margin-bottom:4px">添加到桌面</p>
+      <p class="hint" style="font-size:13px">添加到主屏幕后即可快速打开并离线可用</p>
+    </div>
+    <div style="background:var(--bg);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;font-size:14px;line-height:1.8">
+      ${steps}
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">我知道了</button>
+    </div>
+  </div>`);
+}
+
 function showWeChatHint() {
   if (!isWeChat()) return;
   openModal(`<div style="text-align:center;padding:24px 16px">
@@ -4466,7 +4563,7 @@ document.addEventListener('click', function(e) {
    避免过度反馈（Apple：reserve for meaningful moments）。桌面/不支持设备静默跳过。 */
 (function () {
   if (!navigator.vibrate) return;
-  var SEL = '.btn, .mini-btn, .fab, .sheet-close, .inquire-mini, .coa-btn, .sheet-fab, .back-btn';
+  var SEL = '.btn, .mini-btn, .fab, .sheet-close, .inquire-mini, .coa-btn, .sheet-fab, .back-btn, .tab';
   document.addEventListener('pointerdown', function (e) {
     var el = e.target && e.target.closest && e.target.closest(SEL);
     if (el && !el.disabled) { try { navigator.vibrate(8); } catch (_) {} }

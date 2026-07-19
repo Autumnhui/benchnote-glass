@@ -214,14 +214,17 @@ function save(key, val) {
 let _dbInitPromise = null;
 function ensureDB() {
   if (!_dbInitPromise) {
-    // IndexedDB 超时兜底：3 秒后若仍未成功，标记为不启用，让 load/save 走 localStorage
-    setTimeout(() => {
-      if (!_dbReady) {
-        console.warn('IndexedDB 初始化超时，回退 localStorage');
-        _dbReady = false;
-      }
-    }, 3000);
-    _dbInitPromise = initDB();
+    _dbInitPromise = Promise.race([
+      initDB(),
+      // 超时兜底：2 秒后若仍未成功，标记降级并 resolve（防止 Promise 永久挂起阻塞 boot）
+      new Promise((resolve) => setTimeout(() => {
+        if (!_dbReady) {
+          console.warn('IndexedDB 初始化超时，回退 localStorage');
+          _dbReady = false;
+        }
+        resolve();
+      }, 2000))
+    ]);
   }
   return _dbInitPromise;
 }
@@ -926,12 +929,8 @@ function saveShareImage() {
 }
 function shareVia() {
   const text = `推荐一个好用的实验室助手「${SHARE_TITLE}」——语音/文字记实验、AI 一键整理成规范记录，试剂耗材库存管理、Protocol 模板、二维码标签，打开即用，免安装。\n${SHARE_URL}`;
-  if (navigator.share) {
-    navigator.share({ title: SHARE_TITLE, text, url: SHARE_URL }).then(() => toast('已分享，快去发送吧')).catch(() => {});
-  } else {
-    fallbackCopy(text, '已复制，快去分享吧');
-    closeSheet();
-  }
+  fallbackCopy(text, '已复制，快去分享吧');
+  closeSheet();
 }
 
 function emptyState(title, sub) {
@@ -1717,7 +1716,7 @@ function renderMore() {
       </div>
     </div>`;
   });
-  html += `<div class="version-info">版本：v21<br>更新日期：2026-07-19</div>`;
+  html += `<div class="version-info">版本：v22<br>更新日期：2026-07-19</div>`;
   $('view-more').innerHTML = html;
 }
 /* API 与密钥折叠行：点击向下展开填入 */

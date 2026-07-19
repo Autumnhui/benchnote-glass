@@ -653,7 +653,7 @@ select.sel:focus{border-color:var(--accent-2)}
 /* ═══════════════════════════════════════════
    骨架屏：JS 初始化完成前的加载动效
    ═══════════════════════════════════════════ */
-.skeleton{position:absolute;top:0;left:0;right:0;padding:10px 0 80px;z-index:5}
+.skeleton{position:absolute;top:0;left:0;right:0;padding:10px 0 80px;z-index:5;pointer-events:none}
 .sk-statbar{display:flex;gap:8px;margin-bottom:14px}
 .sk-block{flex:1;height:62px;border-radius:16px;background:rgba(200,200,220,.28)}
 .sk-section-t{padding:0 6px;margin:14px 0 10px}

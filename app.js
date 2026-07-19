@@ -1717,7 +1717,7 @@ function renderMore() {
       </div>
     </div>`;
   });
-  html += `<div class="version-info">版本：v18<br>更新日期：2026-07-19</div>`;
+  html += `<div class="version-info">版本：v19<br>更新日期：2026-07-19</div>`;
   $('view-more').innerHTML = html;
 }
 /* API 与密钥折叠行：点击向下展开填入 */
@@ -4636,9 +4636,13 @@ window.addEventListener('resize', () => { _barBaseH = 0; _titleF = -1; updateTit
   migrateExperiments();
   migrateReagLots();
   maybeOnboard();
-  renderAll();
+  try {
+    renderAll();
+  } catch (err) {
+    console.error('renderAll 渲染失败：', err);
+  }
   updateTitleScale();
-  // 隐藏骨架屏
+  // 隐藏骨架屏（无论渲染是否成功都必须隐藏，否则会一直盖住界面拦截点击）
   const sk = $('skeleton');
   if (sk) sk.classList.add('hide');
   // 隐藏启动加载指示器

@@ -1,4 +1,4 @@
-const CACHE = 'bench-v18';
+const CACHE = 'bench-v19';
 const ASSETS = [
   './',
   './index.html',
@@ -31,12 +31,20 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((resp) => {
-        if (resp && resp.status === 200) {
+        // 只缓存 200 的正常响应；不缓存 opaque/错误响应，避免脏数据
+        if (resp && resp.status === 200 && resp.type !== 'opaque') {
           const cp = resp.clone();
           caches.open(CACHE).then((c) => c.put(e.request, cp));
         }
         return resp;
       })
-      .catch(() => caches.match(e.request).then((c) => c || caches.match('./index.html')))
+      .catch(() => {
+        // 兜底：导航请求才回退 index.html；脚本/样式等静态资源绝不能回退成 HTML，
+        // 否则浏览器会把 HTML 当 JS 执行导致 SyntaxError，整页白屏且无法交互。
+        if (e.request.mode === 'navigate') {
+          return caches.match('./index.html').then((c) => c || caches.match('./'));
+        }
+        return caches.match(e.request);
+      })
   );
 });

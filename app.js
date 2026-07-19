@@ -4533,4 +4533,19 @@ window.addEventListener('resize', () => { _barBaseH = 0; _titleF = -1; updateTit
   if (bl) bl.classList.add('hide');
   setTimeout(() => { if (bl) bl.remove(); }, 400);
   setTimeout(checkExpNotify, 1500);
+  // 禁用 iOS 橡皮筋回弹：到顶或到底时阻止继续拖动
+  let __lastSY = 0;
+  document.addEventListener('touchstart', () => { __lastSY = window.scrollY; }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    // 弹窗内不拦截
+    if (e.target.closest('.sheet-content') || e.target.closest('.modal-content')) return;
+    const sy = window.scrollY;
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const dy = sy - __lastSY;
+    __lastSY = sy;
+    // 到顶 + 下拉(手指向下滑, dy<0) 或 到底 + 上拉(手指向上滑, dy>0)
+    if ((sy <= 0 && dy < 0) || (sy >= max && dy > 0)) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 })();

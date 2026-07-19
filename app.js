@@ -4311,9 +4311,18 @@ function confirmReset() {
   }
   // 重置 onboarded 标记，关闭弹窗后重新显示引导
   save(ONBOARDED, false);
+  // 清除 Service Worker 缓存
+  if ('caches' in window) {
+    try { caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))); } catch (e) {}
+  }
+  // 注销当前 Service Worker
+  if ('serviceWorker' in navigator) {
+    try { navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())); } catch (e) {}
+  }
   closeModal();
   toast('✅ 已重置全部数据，即将刷新页面');
-  setTimeout(() => { location.reload(); }, 300);
+  // location.reload(true) 强制绕过浏览器 HTTP 缓存加载最新代码
+  setTimeout(() => { location.reload(true); }, 300);
 }
 function isWeChat() { return /micromessenger/i.test(navigator.userAgent); }
 function isAndroid() { return /Android/i.test(navigator.userAgent); }

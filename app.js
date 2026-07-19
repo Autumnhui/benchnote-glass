@@ -1686,6 +1686,7 @@ function renderMore() {
   html += `<div class="list-row" onclick="openOnboarding()"><div class="lr-ico">👋</div><div class="lr-main"><div class="lr-title">功能引导</div><div class="lr-sub">重新查看功能介绍</div></div><div class="lr-right">›</div></div>`;
   html += `<div class="list-row" onclick="addToHomeScreen()"><div class="lr-ico" style="background:rgba(0,113,227,.12);color:var(--blue)">📱</div><div class="lr-main"><div class="lr-title">添加到桌面</div><div class="lr-sub">添加到桌面可以快速打开并离线可用</div></div><div class="lr-right" style="font-size:18px">›</div></div>`;
   html += `<div class="list-row" onclick="resetData()" style="color:var(--red)"><div class="lr-ico">🔄</div><div class="lr-main"><div class="lr-title">重置全部数据</div><div class="lr-sub">清除所有记录，恢复为初始默认状态</div></div><div class="lr-right">›</div></div>`;
+  html += `<div class="list-row" onclick="openFeedback()"><div class="lr-ico" style="background:rgba(255,149,0,.12);color:var(--orange)">💬</div><div class="lr-main"><div class="lr-title">问题反馈</div><div class="lr-sub">功能建议或BUG反馈</div></div><div class="lr-right" style="font-size:18px">›</div></div>`;
   html += '<div class="section-title">供应合作</div>';
   // 两家公司卡片
   const supList = [SUPPLIERS.research, SUPPLIERS.enterprise];
@@ -1716,6 +1717,7 @@ function renderMore() {
       </div>
     </div>`;
   });
+  html += `<div class="version-info">版本：v18<br>更新日期：2026-07-19</div>`;
   $('view-more').innerHTML = html;
 }
 /* API 与密钥折叠行：点击向下展开填入 */
@@ -4318,6 +4320,17 @@ function confirmReset() {
 function isWeChat() { return /micromessenger/i.test(navigator.userAgent); }
 function isAndroid() { return /Android/i.test(navigator.userAgent); }
 function isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+/* ---------------- 问题反馈 ---------------- */
+function openFeedback() {
+  openModal(`<div style="text-align:center;padding:24px 16px">
+    <div style="font-size:38px;margin-bottom:8px">💬</div>
+    <h2 style="margin-bottom:4px">问题反馈</h2>
+    <p class="hint" style="font-size:13px;margin-bottom:18px;line-height:1.6">扫描二维码添加微信，<br>发送功能建议或BUG反馈</p>
+    <img src="./feedback-qrcode.png" alt="反馈微信二维码" style="width:220px;height:220px;border-radius:12px;background:#fff;padding:8px;box-sizing:content-box">
+    <p class="hint" style="font-size:11px;margin-top:14px;color:var(--hint)">长按识别或截图保存后扫码</p>
+  </div>`);
+}
 
 /* ---------------- 添加到桌面 ---------------- */
 let _deferredPrompt = null;

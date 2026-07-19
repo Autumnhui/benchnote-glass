@@ -1,4 +1,4 @@
-const CACHE = 'bench-v17';
+const CACHE = 'bench-v18';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,8 @@ const ASSETS = [
   './app.js',
   './xlsx.full.min.js',
   './manifest.webmanifest',
-  './icon.svg'
+  './icon.svg',
+  './feedback-qrcode.png'
 ];
 
 self.addEventListener('install', (e) => {

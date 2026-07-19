@@ -670,6 +670,9 @@ select.sel:focus{border-color:var(--accent-2)}
 /* 骨架屏隐藏 */
 .skeleton.hide{display:none}
 
+/* 版本号 */
+.version-info{text-align:center;font-size:11px;color:rgb(161,161,161);margin:70px 0 0;letter-spacing:.3px;line-height:1.6}
+
 /* ⑪ 字距/行高优化：字号越大字距越紧，建立层级（不改动 font-family） */
 .sheet h2, .modal h2 { letter-spacing: -0.3px; }
 .card h3 { letter-spacing: -0.2px; line-height: 1.3; }

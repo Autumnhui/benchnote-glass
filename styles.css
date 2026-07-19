@@ -655,17 +655,21 @@ select.sel:focus{border-color:var(--accent-2)}
    ═══════════════════════════════════════════ */
 .skeleton{position:absolute;top:0;left:0;right:0;padding:10px 0 80px;z-index:5;pointer-events:none}
 .sk-statbar{display:flex;gap:8px;margin-bottom:14px}
-.sk-block{flex:1;height:62px;border-radius:16px;background:rgba(200,200,220,.28)}
+.sk-block{flex:1;height:62px;border-radius:16px}
 .sk-section-t{padding:0 6px;margin:14px 0 10px}
-.sk-tag{width:80px;height:18px;border-radius:9px;background:rgba(200,200,220,.28)}
+.sk-tag{width:80px;height:18px;border-radius:9px}
 .sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
-.sk-card{height:120px;border-radius:24px;background:rgba(200,200,220,.28)}
-@keyframes sk-shimmer{
-  0%{opacity:.65}
-  50%{opacity:.35}
-  100%{opacity:.65}
+.sk-card{height:120px;border-radius:24px}
+.sk-block,.sk-tag,.sk-card{
+  background:linear-gradient(100deg, rgba(200,200,220,.30) 40%, rgba(255,255,255,.6) 50%, rgba(200,200,220,.30) 60%);
+  background-size:200% 100%;
+  background-repeat:no-repeat;
 }
-.sk-shimmer{animation:sk-shimmer 1.5s ease-in-out infinite}
+@keyframes sk-shimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-100% 0}
+}
+.sk-shimmer{animation:sk-shimmer 1.4s ease-in-out infinite}
 
 /* 骨架屏隐藏 */
 .skeleton.hide{display:none}

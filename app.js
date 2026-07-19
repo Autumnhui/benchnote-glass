@@ -1717,7 +1717,7 @@ function renderMore() {
       </div>
     </div>`;
   });
-  html += `<div class="version-info">版本：v19<br>更新日期：2026-07-19</div>`;
+  html += `<div class="version-info">版本：v20<br>更新日期：2026-07-19</div>`;
   $('view-more').innerHTML = html;
 }
 /* API 与密钥折叠行：点击向下展开填入 */

@@ -650,6 +650,26 @@ select.sel:focus{border-color:var(--accent-2)}
   .inquire-mini{transition-duration:0s !important}
 }
 
+/* ═══════════════════════════════════════════
+   骨架屏：JS 初始化完成前的加载动效
+   ═══════════════════════════════════════════ */
+.skeleton{position:absolute;top:0;left:0;right:0;padding:10px 0 80px;z-index:5}
+.sk-statbar{display:flex;gap:8px;margin-bottom:14px}
+.sk-block{flex:1;height:62px;border-radius:16px;background:rgba(200,200,220,.28)}
+.sk-section-t{padding:0 6px;margin:14px 0 10px}
+.sk-tag{width:80px;height:18px;border-radius:9px;background:rgba(200,200,220,.28)}
+.sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.sk-card{height:120px;border-radius:24px;background:rgba(200,200,220,.28)}
+@keyframes sk-shimmer{
+  0%{opacity:.65}
+  50%{opacity:.35}
+  100%{opacity:.65}
+}
+.sk-shimmer{animation:sk-shimmer 1.5s ease-in-out infinite}
+
+/* 骨架屏隐藏 */
+.skeleton.hide{display:none}
+
 /* ⑪ 字距/行高优化：字号越大字距越紧，建立层级（不改动 font-family） */
 .sheet h2, .modal h2 { letter-spacing: -0.3px; }
 .card h3 { letter-spacing: -0.2px; line-height: 1.3; }
